@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { login as apiLogin } from '../api/auth';
 
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,7 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
         ?.response?.data?.message;
-      setError(msg ?? 'Nieprawidłowy email lub hasło');
+      setError(msg ?? t('login.error'));
     } finally {
       setLoading(false);
     }
@@ -32,10 +34,10 @@ export default function LoginPage() {
     <div className="auth-bg">
       <div className="auth-card">
         <div className="auth-logo">🐾 VetTriage</div>
-        <h1 className="auth-title">Logowanie</h1>
+        <h1 className="auth-title">{t('login.title')}</h1>
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="field">
-            <label>Email</label>
+            <label>{t('login.email')}</label>
             <input
               type="email"
               value={email}
@@ -44,7 +46,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="field">
-            <label>Hasło</label>
+            <label>{t('login.password')}</label>
             <input
               type="password"
               value={password}
@@ -54,11 +56,11 @@ export default function LoginPage() {
           </div>
           {error && <p className="form-error">{error}</p>}
           <button type="submit" className="btn-primary btn-block" disabled={loading}>
-            {loading ? 'Logowanie…' : 'Zaloguj się'}
+            {loading ? t('login.loading') : t('login.submit')}
           </button>
         </form>
         <p className="auth-footer">
-          Nie masz konta? <Link to="/register">Zarejestruj klinikę</Link>
+          {t('login.noAccount')} <Link to="/register">{t('login.registerLink')}</Link>
         </p>
       </div>
     </div>

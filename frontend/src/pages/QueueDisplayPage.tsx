@@ -1,17 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Client } from '@stomp/stompjs';
+import { useTranslation } from 'react-i18next';
 import type { VisitResponse, TriageCategory } from '../types';
 import api from '../api/axios';
 import { useMinuteTick } from '../hooks/useMinuteTick';
 import { formatWaitTime } from '../utils/waitTime';
-
-const CAT: Record<TriageCategory, { label: string; bg: string; rowBg: string }> = {
-  RED:    { label: 'KRYTYCZNY',   bg: '#ef4444', rowBg: '#fff5f5' },
-  ORANGE: { label: 'PILNY',       bg: '#f97316', rowBg: '#fff7ed' },
-  YELLOW: { label: 'MNIEJ PILNY', bg: '#eab308', rowBg: '#fefce8' },
-  GREEN:  { label: 'PLANOWY',     bg: '#22c55e', rowBg: '#f0fdf4' },
-};
 
 function Clock() {
   const [time, setTime] = useState(new Date());
@@ -32,8 +26,16 @@ export default function QueueDisplayPage() {
   const [clinicName, setClinicName] = useState('');
   const [accentColor, setAccentColor] = useState('#1e293b');
   const clientRef = useRef<Client | null>(null);
+  const { t } = useTranslation();
 
   useMinuteTick();
+
+  const CAT: Record<TriageCategory, { label: string; bg: string; rowBg: string }> = {
+    RED:    { label: t('queue.catRed'),    bg: '#ef4444', rowBg: '#fff5f5' },
+    ORANGE: { label: t('queue.catOrange'), bg: '#f97316', rowBg: '#fff7ed' },
+    YELLOW: { label: t('queue.catYellow'), bg: '#eab308', rowBg: '#fefce8' },
+    GREEN:  { label: t('queue.catGreen'),  bg: '#22c55e', rowBg: '#f0fdf4' },
+  };
 
   const fetchQueue = useCallback(() => {
     if (!clinicCode) return;
@@ -89,7 +91,7 @@ export default function QueueDisplayPage() {
         <div style={s.logo}>
           <span style={{ fontSize: 40 }}>🐾</span>
           <div>
-            <div style={{ fontSize: 12, opacity: 0.7, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>VetTriage</div>
+            <div style={{ fontSize: 12, opacity: 0.7, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>{t('queue.appName')}</div>
             <div style={{ fontSize: 28, fontWeight: 800 }}>{clinicName || clinicCode}</div>
           </div>
         </div>
@@ -98,19 +100,19 @@ export default function QueueDisplayPage() {
 
       <main style={s.main}>
         <div style={{ fontSize: 20, fontWeight: 700, color: '#334155', marginBottom: 24 }}>
-          Aktualna kolejka &nbsp;
+          {t('queue.title')} &nbsp;
           <span style={{ fontSize: 16, fontWeight: 500, color: '#64748b' }}>
-            ({visits.length} {visits.length === 1 ? 'pacjent' : 'pacjentów'})
+            ({t('queue.patients', { count: visits.length })})
           </span>
         </div>
 
         {visits.length === 0 ? (
-          <div style={s.empty}>Brak pacjentów w kolejce</div>
+          <div style={s.empty}>{t('queue.noPatients')}</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 10px' }}>
             <thead>
               <tr style={{ borderBottom: `3px solid ${accentColor}` }}>
-                {['Lp.', 'Imię zwierzęcia', 'Gatunek / Rasa', 'Kategoria triażu', 'Czas oczekiwania'].map(h => (
+                {[t('queue.colNo'), t('queue.colAnimal'), t('queue.colSpeciesBreed'), t('queue.colCategory'), t('queue.colWaitTime')].map(h => (
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr>
@@ -140,7 +142,7 @@ export default function QueueDisplayPage() {
                     </td>
                     <td style={{ padding: '20px 20px', fontSize: 24, fontWeight: 600, color: '#0f172a', borderRadius: '0 12px 12px 0' }}>
                       {v.triageCategory === 'RED'
-                        ? <span style={{ color: '#ef4444', fontWeight: 800 }}>Teraz</span>
+                        ? <span style={{ color: '#ef4444', fontWeight: 800 }}>{t('queue.now')}</span>
                         : <span style={formatWaitTime(v) === '<5 min' ? { color: '#f97316', fontWeight: 700 } : {}}>
                             {formatWaitTime(v)}
                           </span>}

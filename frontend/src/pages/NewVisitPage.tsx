@@ -1,35 +1,72 @@
 import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { createVisit, getPreviewTime } from '../api/visits';
 import type { Gender, TriageCategory } from '../types';
 
-const SYMPTOM_GROUPS = [
+const SYMPTOM_GROUPS: Array<{
+  groupKey: string;
+  items: Array<{ key: string; value: string }>;
+}> = [
   {
-    label: 'Oddechowe',
-    items: ['brak oddechu', 'trudności oddechowe', 'kaszel', 'świsty'],
+    groupKey: 'symptoms.groupRespiratory',
+    items: [
+      { key: 'symptoms.noBreathing',        value: 'brak oddechu' },
+      { key: 'symptoms.breathingDifficulty', value: 'trudności oddechowe' },
+      { key: 'symptoms.cough',              value: 'kaszel' },
+      { key: 'symptoms.wheeze',             value: 'świsty' },
+    ],
   },
   {
-    label: 'Krążeniowe',
-    items: ['wstrząs', 'krwotok', 'bladość błon śluzowych', 'tachykardia'],
+    groupKey: 'symptoms.groupCirculatory',
+    items: [
+      { key: 'symptoms.shock',       value: 'wstrząs' },
+      { key: 'symptoms.hemorrhage',  value: 'krwotok' },
+      { key: 'symptoms.paleMucosa',  value: 'bladość błon śluzowych' },
+      { key: 'symptoms.tachycardia', value: 'tachykardia' },
+    ],
   },
   {
-    label: 'Neurologiczne',
-    items: ['drgawki', 'utrata przytomności', 'dezorientacja'],
+    groupKey: 'symptoms.groupNeurological',
+    items: [
+      { key: 'symptoms.seizures',       value: 'drgawki' },
+      { key: 'symptoms.unconscious',    value: 'utrata przytomności' },
+      { key: 'symptoms.disorientation', value: 'dezorientacja' },
+    ],
   },
   {
-    label: 'Pokarmowe',
-    items: ['wymioty', 'brak apetytu', 'biegunka', 'wzdęcie'],
+    groupKey: 'symptoms.groupDigestive',
+    items: [
+      { key: 'symptoms.vomiting',   value: 'wymioty' },
+      { key: 'symptoms.noAppetite', value: 'brak apetytu' },
+      { key: 'symptoms.diarrhea',   value: 'biegunka' },
+      { key: 'symptoms.bloating',   value: 'wzdęcie' },
+    ],
   },
   {
-    label: 'Urazowe',
-    items: ['uraz', 'silny ból', 'złamanie', 'otwarta rana'],
+    groupKey: 'symptoms.groupTrauma',
+    items: [
+      { key: 'symptoms.trauma',     value: 'uraz' },
+      { key: 'symptoms.severePain', value: 'silny ból' },
+      { key: 'symptoms.fracture',   value: 'złamanie' },
+      { key: 'symptoms.openWound',  value: 'otwarta rana' },
+    ],
   },
   {
-    label: 'Moczowe / Inne',
-    items: ['niedrożność moczowa', 'gorączka', 'kulawizna', 'szczepienie', 'kontrola', 'pielęgnacja'],
+    groupKey: 'symptoms.groupUrinaryOther',
+    items: [
+      { key: 'symptoms.urinaryObstruction', value: 'niedrożność moczowa' },
+      { key: 'symptoms.fever',       value: 'gorączka' },
+      { key: 'symptoms.lameness',    value: 'kulawizna' },
+      { key: 'symptoms.vaccination', value: 'szczepienie' },
+      { key: 'symptoms.checkup',     value: 'kontrola' },
+      { key: 'symptoms.grooming',    value: 'pielęgnacja' },
+    ],
   },
 ];
+
+const CATEGORIES: TriageCategory[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN'];
 
 interface FormState {
   reason: string;
@@ -51,13 +88,6 @@ const INITIAL: FormState = {
   ownerFullName: '', ownerAddress: '', ownerPhone: '',
 };
 
-const CATEGORY_LABELS: Record<TriageCategory, string> = {
-  RED: 'RED — Krytyczny',
-  ORANGE: 'ORANGE — Pilny',
-  YELLOW: 'YELLOW — Mniej pilny',
-  GREEN: 'GREEN — Planowy',
-};
-
 export default function NewVisitPage() {
   const [form, setForm] = useState<FormState>(INITIAL);
   const [symptoms, setSymptoms] = useState<Set<string>>(new Set());
@@ -68,6 +98,7 @@ export default function NewVisitPage() {
   const [manualMinutes, setManualMinutes] = useState('');
   const [previewMinutes, setPreviewMinutes] = useState<number | null>(null);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!manualCategory) { setPreviewMinutes(null); return; }
@@ -77,10 +108,10 @@ export default function NewVisitPage() {
   const set = (field: keyof FormState) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(prev => ({ ...prev, [field]: e.target.value }));
 
-  const toggleSymptom = (s: string) =>
+  const toggleSymptom = (value: string) =>
     setSymptoms(prev => {
       const next = new Set(prev);
-      next.has(s) ? next.delete(s) : next.add(s);
+      next.has(value) ? next.delete(value) : next.add(value);
       return next;
     });
 
@@ -107,7 +138,7 @@ export default function NewVisitPage() {
       });
       navigate('/triage');
     } catch {
-      setError('Nie udało się zarejestrować wizyty. Spróbuj ponownie.');
+      setError(t('newVisit.error'));
     } finally {
       setLoading(false);
     }
@@ -115,29 +146,29 @@ export default function NewVisitPage() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Nowa wizyta</h1>
+      <h1 className="page-title">{t('newVisit.title')}</h1>
       <form onSubmit={handleSubmit}>
 
         <div className="card mb-4">
-          <h2 className="section-title">Powód wizyty i objawy</h2>
+          <h2 className="section-title">{t('newVisit.sectionReason')}</h2>
           <div className="field">
-            <label>Powód wizyty *</label>
+            <label>{t('newVisit.reasonLabel')}</label>
             <textarea value={form.reason} onChange={set('reason')} required rows={3}
-              placeholder="Opisz powód wizyty…" />
+              placeholder={t('newVisit.reasonPlaceholder')} />
           </div>
           <div className="symptom-groups">
             {SYMPTOM_GROUPS.map(group => (
-              <div key={group.label} className="symptom-group">
-                <p className="symptom-group-label">{group.label}</p>
+              <div key={group.groupKey} className="symptom-group">
+                <p className="symptom-group-label">{t(group.groupKey)}</p>
                 <div className="symptom-list">
-                  {group.items.map(s => (
-                    <label key={s} className={`symptom-chip${symptoms.has(s) ? ' checked' : ''}`}>
+                  {group.items.map(item => (
+                    <label key={item.value} className={`symptom-chip${symptoms.has(item.value) ? ' checked' : ''}`}>
                       <input
                         type="checkbox"
-                        checked={symptoms.has(s)}
-                        onChange={() => toggleSymptom(s)}
+                        checked={symptoms.has(item.value)}
+                        onChange={() => toggleSymptom(item.value)}
                       />
-                      {s}
+                      {t(item.key)}
                     </label>
                   ))}
                 </div>
@@ -147,55 +178,55 @@ export default function NewVisitPage() {
         </div>
 
         <div className="card mb-4">
-          <h2 className="section-title">Dane zwierzęcia</h2>
+          <h2 className="section-title">{t('newVisit.sectionAnimal')}</h2>
           <div className="form-grid">
             <div className="field">
-              <label>Imię *</label>
-              <input value={form.animalName} onChange={set('animalName')} required placeholder="Burek" />
+              <label>{t('newVisit.animalName')}</label>
+              <input value={form.animalName} onChange={set('animalName')} required placeholder={t('newVisit.animalNamePlaceholder')} />
             </div>
             <div className="field">
-              <label>Gatunek *</label>
-              <input value={form.species} onChange={set('species')} required placeholder="Pies" />
+              <label>{t('newVisit.species')}</label>
+              <input value={form.species} onChange={set('species')} required placeholder={t('newVisit.speciesPlaceholder')} />
             </div>
             <div className="field">
-              <label>Rasa</label>
-              <input value={form.breed} onChange={set('breed')} placeholder="Labrador" />
+              <label>{t('newVisit.breed')}</label>
+              <input value={form.breed} onChange={set('breed')} placeholder={t('newVisit.breedPlaceholder')} />
             </div>
             <div className="field">
-              <label>Płeć *</label>
+              <label>{t('newVisit.gender')}</label>
               <select value={form.gender} onChange={set('gender')}>
-                <option value="MALE">Samiec</option>
-                <option value="FEMALE">Samica</option>
+                <option value="MALE">{t('newVisit.genderMale')}</option>
+                <option value="FEMALE">{t('newVisit.genderFemale')}</option>
               </select>
             </div>
             <div className="field">
-              <label>Wiek (lata)</label>
+              <label>{t('newVisit.ageYears')}</label>
               <input type="number" min={0} max={50} value={form.ageYears} onChange={set('ageYears')} placeholder="3" />
             </div>
             <div className="field">
-              <label>Maść / umaszczenie</label>
-              <input value={form.color} onChange={set('color')} placeholder="Czarny" />
+              <label>{t('newVisit.color')}</label>
+              <input value={form.color} onChange={set('color')} placeholder={t('newVisit.colorPlaceholder')} />
             </div>
             <div className="field">
-              <label>Masa ciała (kg)</label>
+              <label>{t('newVisit.weightKg')}</label>
               <input type="number" min={0} step="0.1" value={form.weightKg} onChange={set('weightKg')} placeholder="12.5" />
             </div>
           </div>
         </div>
 
         <div className="card mb-4">
-          <h2 className="section-title">Dane właściciela</h2>
+          <h2 className="section-title">{t('newVisit.sectionOwner')}</h2>
           <div className="form-grid">
             <div className="field field-wide">
-              <label>Imię i nazwisko *</label>
-              <input value={form.ownerFullName} onChange={set('ownerFullName')} required placeholder="Jan Kowalski" />
+              <label>{t('newVisit.ownerFullName')}</label>
+              <input value={form.ownerFullName} onChange={set('ownerFullName')} required placeholder={t('newVisit.ownerFullNamePlaceholder')} />
             </div>
             <div className="field field-wide">
-              <label>Adres</label>
-              <input value={form.ownerAddress} onChange={set('ownerAddress')} placeholder="ul. Kwiatowa 1, Warszawa" />
+              <label>{t('newVisit.ownerAddress')}</label>
+              <input value={form.ownerAddress} onChange={set('ownerAddress')} placeholder={t('newVisit.ownerAddressPlaceholder')} />
             </div>
             <div className="field">
-              <label>Telefon *</label>
+              <label>{t('newVisit.ownerPhone')}</label>
               <input type="tel" value={form.ownerPhone} onChange={set('ownerPhone')} required placeholder="600 000 000" />
             </div>
           </div>
@@ -211,34 +242,34 @@ export default function NewVisitPage() {
             }}
           >
             <AlertTriangle size={18} />
-            Ręczne nadpisanie triażu (opcjonalne)
+            {t('newVisit.overrideTitle')}
             {overrideOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
 
           {overrideOpen && (
             <div style={{ marginTop: 16 }}>
               <p style={{ fontSize: 13, color: '#92400e', marginBottom: 14 }}>
-                Uwaga: ręczne nadpisanie zastąpi automatyczny wynik algorytmu.
+                {t('newVisit.overrideWarning')}
               </p>
               <div className="form-grid">
                 <div className="field">
-                  <label>Kategoria triażu</label>
+                  <label>{t('newVisit.overrideCategoryLabel')}</label>
                   <select
                     value={manualCategory}
                     onChange={e => setManualCategory(e.target.value as TriageCategory | '')}
                   >
-                    <option value="">Automatyczna (algorytm)</option>
-                    {(Object.keys(CATEGORY_LABELS) as TriageCategory[]).map(cat => (
-                      <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                    <option value="">{t('newVisit.overrideCategoryAuto')}</option>
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat} — {t(`cat.${cat}`)}</option>
                     ))}
                   </select>
                 </div>
                 <div className="field">
                   <label>
-                    Czas oczekiwania (min)
+                    {t('newVisit.overrideMinutesLabel')}
                     {previewMinutes !== null && !manualMinutes && (
                       <span style={{ fontWeight: 400, color: '#78716c', marginLeft: 6, fontSize: 13 }}>
-                        szacowany: {previewMinutes} min
+                        {t('newVisit.overrideEstimated', { min: previewMinutes })}
                       </span>
                     )}
                   </label>
@@ -261,7 +292,7 @@ export default function NewVisitPage() {
                     color: '#b45309', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
                   }}
                 >
-                  Wyczyść
+                  {t('newVisit.overrideClear')}
                 </button>
               )}
             </div>
@@ -270,7 +301,7 @@ export default function NewVisitPage() {
 
         {error && <p className="form-error mb-4">{error}</p>}
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? 'Rejestracja…' : 'Zarejestruj wizytę'}
+          {loading ? t('newVisit.loading') : t('newVisit.submit')}
         </button>
       </form>
     </div>

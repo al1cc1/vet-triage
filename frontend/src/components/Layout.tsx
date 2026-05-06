@@ -1,25 +1,27 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { PlusCircle, Activity, History, Settings, LogOut } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { getSettings } from '../api/clinic';
-
-const NAV = [
-  { to: '/new-visit', icon: PlusCircle, label: 'Nowa wizyta' },
-  { to: '/triage',    icon: Activity,   label: 'Triaż live' },
-  { to: '/history',  icon: History,    label: 'Historia' },
-  { to: '/settings', icon: Settings,   label: 'Ustawienia' },
-];
 
 export default function Layout() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     getSettings()
       .then(s => document.documentElement.style.setProperty('--accent', s.accentColor))
       .catch(() => {});
   }, []);
+
+  const NAV = [
+    { to: '/new-visit', icon: PlusCircle, label: t('nav.newVisit') },
+    { to: '/triage',    icon: Activity,   label: t('nav.triageLive') },
+    { to: '/history',   icon: History,    label: t('nav.history') },
+    { to: '/settings',  icon: Settings,   label: t('nav.settings') },
+  ];
 
   return (
     <div className="layout">
@@ -42,7 +44,7 @@ export default function Layout() {
           onClick={() => { logout(); navigate('/login'); }}
         >
           <LogOut size={18} />
-          <span>Wyloguj</span>
+          <span>{t('nav.logout')}</span>
         </button>
       </aside>
       <main className="content">

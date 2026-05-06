@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Client } from '@stomp/stompjs';
 import { CheckCircle, Wifi, WifiOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { getQueue, acceptVisit } from '../api/visits';
 import type { VisitResponse, TriageCategory } from '../types';
 import { useMinuteTick } from '../hooks/useMinuteTick';
 import { formatWaitTime } from '../utils/waitTime';
 
-const CATEGORY_LABEL: Record<TriageCategory, string> = {
-  RED: 'Czerwony', ORANGE: 'Pomarańczowy', YELLOW: 'Żółty', GREEN: 'Zielony',
-};
-
 function TriagePill({ cat }: { cat: TriageCategory }) {
-  return <span className={`pill pill-${cat.toLowerCase()}`}>{CATEGORY_LABEL[cat]}</span>;
+  const { t } = useTranslation();
+  return <span className={`pill pill-${cat.toLowerCase()}`}>{t(`cat.${cat}`)}</span>;
 }
 
 function formatTime(iso: string) {
@@ -24,6 +22,7 @@ export default function TriageLivePage() {
   const [visits, setVisits] = useState<VisitResponse[]>([]);
   const [connected, setConnected] = useState(false);
   const clientRef = useRef<Client | null>(null);
+  const { t } = useTranslation();
   useMinuteTick();
 
   useEffect(() => {
@@ -59,25 +58,25 @@ export default function TriageLivePage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Triaż live</h1>
+        <h1 className="page-title">{t('triage.title')}</h1>
         <span className={`ws-badge${connected ? ' connected' : ''}`}>
-          {connected ? <><Wifi size={14} /> Na żywo</> : <><WifiOff size={14} /> Rozłączony</>}
+          {connected ? <><Wifi size={14} /> {t('common.live') ?? 'Na żywo'}</> : <><WifiOff size={14} /> {t('common.disconnected') ?? 'Rozłączony'}</>}
         </span>
       </div>
 
       {visits.length === 0 ? (
-        <div className="empty-state">Brak pacjentów w kolejce</div>
+        <div className="empty-state">{t('triage.noPatients')}</div>
       ) : (
         <div className="card">
           <table className="table">
             <thead>
               <tr>
-                <th>Lp.</th>
-                <th>Pacjent</th>
-                <th>Powód</th>
-                <th>Kategoria</th>
-                <th>Czas oczekiwania</th>
-                <th>Godzina</th>
+                <th>{t('triage.colNo')}</th>
+                <th>{t('triage.colPatient')}</th>
+                <th>{t('triage.colReason')}</th>
+                <th>{t('triage.colCategory')}</th>
+                <th>{t('triage.colWaitTime')}</th>
+                <th>{t('triage.colTime')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -94,7 +93,7 @@ export default function TriageLivePage() {
                   <td><TriagePill cat={v.triageCategory} /></td>
                   <td>
                     {v.triageCategory === 'RED'
-                      ? <span className="text-urgent">Teraz</span>
+                      ? <span className="text-urgent">{t('triage.now')}</span>
                       : formatWaitTime(v)}
                   </td>
                   <td className="text-muted">{formatTime(v.createdAt)}</td>
@@ -102,10 +101,10 @@ export default function TriageLivePage() {
                     <button
                       className="btn-accept"
                       onClick={() => handleAccept(v.id)}
-                      title="Oznacz jako przyjęty"
+                      title={t('triage.accept')}
                     >
                       <CheckCircle size={16} />
-                      <span>Przyjęty</span>
+                      <span>{t('triage.accept')}</span>
                     </button>
                   </td>
                 </tr>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { register as apiRegister } from '../api/auth';
 
@@ -11,6 +12,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -23,7 +25,7 @@ export default function RegisterPage() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
         ?.response?.data?.message;
-      setError(msg ?? 'Rejestracja nie powiodła się');
+      setError(msg ?? t('register.error'));
     } finally {
       setLoading(false);
     }
@@ -33,18 +35,18 @@ export default function RegisterPage() {
     <div className="auth-bg">
       <div className="auth-card">
         <div className="auth-logo">🐾 VetTriage</div>
-        <h1 className="auth-title">Rejestracja kliniki</h1>
+        <h1 className="auth-title">{t('register.title')}</h1>
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="field">
-            <label>Nazwa kliniki</label>
+            <label>{t('register.clinicName')}</label>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
-              required autoFocus placeholder="Klinika Weterynaryjna XYZ"
+              required autoFocus placeholder={t('register.clinicNamePlaceholder')}
             />
           </div>
           <div className="field">
-            <label>Email</label>
+            <label>{t('register.email')}</label>
             <input
               type="email"
               value={email}
@@ -53,21 +55,21 @@ export default function RegisterPage() {
             />
           </div>
           <div className="field">
-            <label>Hasło</label>
+            <label>{t('register.password')}</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              required minLength={6} placeholder="Minimum 6 znaków"
+              required minLength={6} placeholder={t('register.passwordPlaceholder')}
             />
           </div>
           {error && <p className="form-error">{error}</p>}
           <button type="submit" className="btn-primary btn-block" disabled={loading}>
-            {loading ? 'Rejestracja…' : 'Załóż konto'}
+            {loading ? t('register.loading') : t('register.submit')}
           </button>
         </form>
         <p className="auth-footer">
-          Masz już konto? <Link to="/login">Zaloguj się</Link>
+          {t('register.hasAccount')} <Link to="/login">{t('register.loginLink')}</Link>
         </p>
       </div>
     </div>

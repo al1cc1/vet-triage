@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Copy, CheckCheck, Plus, ExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import { getSettings, updateSettings } from '../api/clinic';
 import { getDoctors, createDoctor } from '../api/users';
 import type { ClinicSettings, UserResponse } from '../types';
@@ -9,12 +11,12 @@ export default function SettingsPage() {
   const [doctors, setDoctors] = useState<UserResponse[]>([]);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-
   const [doctorEmail, setDoctorEmail] = useState('');
   const [doctorPin, setDoctorPin] = useState('');
   const [doctorError, setDoctorError] = useState('');
   const [doctorLoading, setDoctorLoading] = useState(false);
   const [iframeCopied, setIframeCopied] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     getSettings().then(s => {
@@ -32,6 +34,8 @@ export default function SettingsPage() {
       const updated = await updateSettings({ accentColor: settings.accentColor, language: settings.language });
       setSettings(updated);
       document.documentElement.style.setProperty('--accent', updated.accentColor);
+      i18n.changeLanguage(updated.language);
+      localStorage.setItem('i18nextLng', updated.language);
     } finally {
       setSaving(false);
     }
@@ -56,25 +60,24 @@ export default function SettingsPage() {
       setDoctorPin('');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setDoctorError(msg ?? 'Nie udało się dodać lekarza');
+      setDoctorError(msg ?? t('settings.doctorError'));
     } finally {
       setDoctorLoading(false);
     }
   };
 
-  if (!settings) return <div className="page"><div className="empty-state">Ładowanie…</div></div>;
+  if (!settings) return <div className="page"><div className="empty-state">{t('history.loading')}</div></div>;
 
   return (
     <div className="page">
-      <h1 className="page-title">Ustawienia</h1>
+      <h1 className="page-title">{t('settings.title')}</h1>
 
-      {/* Clinic settings */}
       <div className="card mb-4">
-        <h2 className="section-title">Wygląd i język</h2>
+        <h2 className="section-title">{t('settings.appearanceSection')}</h2>
         <form onSubmit={handleSave}>
           <div className="form-grid">
             <div className="field">
-              <label>Kolor akcentu</label>
+              <label>{t('settings.accentColor')}</label>
               <div className="color-picker-row">
                 <input
                   type="color"
@@ -89,10 +92,15 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="field">
-              <label>Język</label>
+              <label>{t('settings.language')}</label>
               <select
                 value={settings.language}
-                onChange={e => setSettings(s => s ? { ...s, language: e.target.value } : s)}
+                onChange={e => {
+                  const lang = e.target.value;
+                  setSettings(s => s ? { ...s, language: lang } : s);
+                  i18n.changeLanguage(lang);
+                  localStorage.setItem('i18nextLng', lang);
+                }}
               >
                 <option value="pl">Polski</option>
                 <option value="en">English</option>
@@ -100,39 +108,37 @@ export default function SettingsPage() {
             </div>
           </div>
           <button type="submit" className="btn-primary" disabled={saving}>
-            {saving ? 'Zapisywanie…' : 'Zapisz ustawienia'}
+            {saving ? t('settings.saving') : t('settings.save')}
           </button>
         </form>
       </div>
 
-      {/* Clinic code */}
       <div className="card mb-4">
-        <h2 className="section-title">Kod kliniki</h2>
-        <p className="text-muted mb-2">Przekaż ten kod lekarzom, aby mogli się zalogować.</p>
+        <h2 className="section-title">{t('settings.clinicCodeSection')}</h2>
+        <p className="text-muted mb-2">{t('settings.clinicCodeDesc')}</p>
         <div className="code-display">
           <span className="clinic-code">{settings.clinicCode}</span>
-          <button className="btn-secondary btn-icon" onClick={handleCopy} title="Kopiuj">
+          <button className="btn-secondary btn-icon" onClick={handleCopy} title={t('settings.copy')}>
             {copied ? <CheckCheck size={16} /> : <Copy size={16} />}
-            {copied ? 'Skopiowano' : 'Kopiuj'}
+            {copied ? t('settings.copied') : t('settings.copy')}
           </button>
         </div>
       </div>
 
-      {/* Lobby screen */}
       <div className="card mb-4">
-        <h2 className="section-title">Ekran poczekalni</h2>
-        <p className="text-muted mb-4">Wyświetl kolejkę triażu na dużym ekranie w poczekalni.</p>
+        <h2 className="section-title">{t('settings.lobbySection')}</h2>
+        <p className="text-muted mb-4">{t('settings.lobbyDesc')}</p>
         <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
           <button
             className="btn-primary btn-icon"
             onClick={() => window.open(`/queue/${settings.clinicCode}`, '_blank')}
           >
             <ExternalLink size={16} />
-            Otwórz ekran poczekalni
+            {t('settings.openLobby')}
           </button>
         </div>
         <div className="field">
-          <label>Kod iframe do osadzenia na stronie kliniki</label>
+          <label>{t('settings.iframeLabel')}</label>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginTop: 4 }}>
             <textarea
               readOnly
@@ -151,18 +157,17 @@ export default function SettingsPage() {
               }}
             >
               {iframeCopied ? <CheckCheck size={16} /> : <Copy size={16} />}
-              {iframeCopied ? 'Skopiowano' : 'Kopiuj kod'}
+              {iframeCopied ? t('settings.copied') : t('settings.copyCode')}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Doctors */}
       <div className="card">
-        <h2 className="section-title">Lekarze</h2>
+        <h2 className="section-title">{t('settings.doctorsSection')}</h2>
         <form onSubmit={handleAddDoctor} className="inline-form mb-4">
           <div className="field">
-            <label>Email lekarza</label>
+            <label>{t('settings.doctorEmail')}</label>
             <input
               type="email"
               value={doctorEmail}
@@ -171,7 +176,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="field">
-            <label>PIN (6 cyfr)</label>
+            <label>{t('settings.doctorPin')}</label>
             <input
               value={doctorPin}
               onChange={e => setDoctorPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -180,23 +185,23 @@ export default function SettingsPage() {
           </div>
           <button type="submit" className="btn-primary btn-icon" disabled={doctorLoading}>
             <Plus size={16} />
-            {doctorLoading ? 'Dodawanie…' : 'Dodaj'}
+            {doctorLoading ? t('settings.addingDoctor') : t('settings.addDoctor')}
           </button>
         </form>
         {doctorError && <p className="form-error mb-2">{doctorError}</p>}
 
         {doctors.length === 0 ? (
-          <p className="text-muted">Brak lekarzy. Dodaj pierwszego powyżej.</p>
+          <p className="text-muted">{t('settings.noDoctors')}</p>
         ) : (
           <table className="table">
             <thead>
-              <tr><th>Email</th><th>Rola</th></tr>
+              <tr><th>Email</th><th>{t('settings.doctorRole')}</th></tr>
             </thead>
             <tbody>
               {doctors.map(d => (
                 <tr key={d.id}>
                   <td>{d.email}</td>
-                  <td><span className="pill pill-green">Lekarz</span></td>
+                  <td><span className="pill pill-green">{t('settings.doctorRole')}</span></td>
                 </tr>
               ))}
             </tbody>

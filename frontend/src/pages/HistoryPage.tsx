@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
+import { Download } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { getFilteredHistory } from '../api/visits';
+import { exportVisitsCSV } from '../utils/csvExport';
 import type { VisitResponse, TriageCategory, VisitStatus } from '../types';
 
 const CATEGORIES: TriageCategory[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN'];
-const CAT_LABEL: Record<TriageCategory, string> = {
-  RED: 'Czerwony', ORANGE: 'Pomarańczowy', YELLOW: 'Żółty', GREEN: 'Zielony',
-};
 const CAT_COLOR: Record<TriageCategory, string> = {
   RED: '#ef4444', ORANGE: '#f97316', YELLOW: '#ca8a04', GREEN: '#16a34a',
 };
-const STATUS_LABEL: Record<VisitStatus, string> = {
-  WAITING: 'Oczekuje', IN_PROGRESS: 'W trakcie', DONE: 'Zakończona',
-};
+const STATUSES: VisitStatus[] = ['WAITING', 'IN_PROGRESS', 'DONE'];
 
 type DateMode = 'range' | 'single';
 
@@ -25,6 +23,7 @@ function formatDateTime(iso: string) {
 
 export default function HistoryPage() {
   const { clinicCode } = useAuth();
+  const { t } = useTranslation();
   const [visits, setVisits] = useState<VisitResponse[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -47,10 +46,8 @@ export default function HistoryPage() {
     if (!clinicCode) return;
     setLoading(true);
     const params: Parameters<typeof getFilteredHistory>[0] = {};
-
     if (dateMode === 'single' && singleDate) {
-      params.dateFrom = singleDate;
-      params.dateTo = singleDate;
+      params.dateFrom = singleDate; params.dateTo = singleDate;
     } else {
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
@@ -88,14 +85,32 @@ export default function HistoryPage() {
     GREEN:  visits.filter(v => v.triageCategory === 'GREEN').length,
   }), [visits]);
 
+  const handleExport = () => {
+    exportVisitsCSV(visits, {
+      date:       t('history.csvDate'),
+      animalName: t('history.csvAnimalName'),
+      species:    t('history.csvSpecies'),
+      breed:      t('history.csvBreed'),
+      gender:     t('history.csvGender'),
+      age:        t('history.csvAge'),
+      weight:     t('history.csvWeight'),
+      owner:      t('history.csvOwner'),
+      phone:      t('history.csvPhone'),
+      reason:     t('history.csvReason'),
+      category:   t('history.csvCategory'),
+      waitMin:    t('history.csvWaitMin'),
+      status:     t('history.csvStatus'),
+    });
+  };
+
   return (
     <div className="page">
-      <h1 className="page-title">Historia wizyt</h1>
+      <h1 className="page-title">{t('history.title')}</h1>
 
       {/* Stats line */}
       <div style={{ fontSize: 14, color: '#475569', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: '0 16px', alignItems: 'center' }}>
         <span>
-          Znaleziono: <strong style={{ color: '#0f172a' }}>{visits.length}</strong> wizyt łącznie
+          {t('history.found', { count: visits.length }).replace('<bold>', '').replace('</bold>', '')}
         </span>
         <span style={{ color: '#cbd5e1' }}>|</span>
         {CATEGORIES.map(cat => (
@@ -106,14 +121,13 @@ export default function HistoryPage() {
         {hasFilters && (
           <>
             <span style={{ color: '#cbd5e1' }}>|</span>
-            <span style={{ color: '#64748b' }}>Pokazuje {visits.length} z {total} wizyt</span>
+            <span style={{ color: '#64748b' }}>{t('history.showingOf', { current: visits.length, total })}</span>
           </>
         )}
       </div>
 
       {/* Filters */}
       <div className="card mb-4">
-        {/* Date mode toggle */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           {(['range', 'single'] as DateMode[]).map(m => (
             <button
@@ -128,7 +142,7 @@ export default function HistoryPage() {
                 fontWeight: 600, fontSize: 13, cursor: 'pointer',
               }}
             >
-              {m === 'range' ? 'Zakres dat' : 'Konkretny dzień'}
+              {t(m === 'range' ? 'history.dateRange' : 'history.singleDay')}
             </button>
           ))}
         </div>
@@ -136,39 +150,39 @@ export default function HistoryPage() {
         <div className="filter-row" style={{ flexWrap: 'wrap', gap: 12 }}>
           {dateMode === 'single' ? (
             <div className="field">
-              <label>Dzień</label>
+              <label>{t('history.day')}</label>
               <input type="date" value={singleDate} onChange={e => setSingleDate(e.target.value)} />
             </div>
           ) : (
             <>
               <div className="field">
-                <label>Od</label>
+                <label>{t('history.from')}</label>
                 <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
               </div>
               <div className="field">
-                <label>Do</label>
+                <label>{t('history.to')}</label>
                 <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
               </div>
             </>
           )}
 
           <div className="field">
-            <label>Gatunek</label>
+            <label>{t('history.speciesLabel')}</label>
             <select value={species} onChange={e => setSpecies(e.target.value)}>
-              <option value="">(wszystkie)</option>
-              <option value="pies">Pies</option>
-              <option value="kot">Kot</option>
-              <option value="królik">Królik</option>
-              <option value="inne">Inne</option>
+              <option value="">{t('history.speciesAll')}</option>
+              <option value="pies">{t('history.speciesDog')}</option>
+              <option value="kot">{t('history.speciesCat')}</option>
+              <option value="królik">{t('history.speciesRabbit')}</option>
+              <option value="inne">{t('history.speciesOther')}</option>
             </select>
           </div>
 
           <div className="field">
-            <label>Status</label>
+            <label>{t('history.statusLabel')}</label>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as VisitStatus | '')}>
-              <option value="">(wszystkie)</option>
-              {(Object.entries(STATUS_LABEL) as [VisitStatus, string][]).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
+              <option value="">{t('history.statusAll')}</option>
+              {STATUSES.map(s => (
+                <option key={s} value={s}>{t(`status.${s}`)}</option>
               ))}
             </select>
           </div>
@@ -176,7 +190,7 @@ export default function HistoryPage() {
 
         {/* Category chips */}
         <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginRight: 4 }}>Kategoria:</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginRight: 4 }}>{t('history.categoryLabel')}</span>
           {CATEGORIES.map(cat => {
             const active = categories.has(cat);
             return (
@@ -198,35 +212,44 @@ export default function HistoryPage() {
           })}
         </div>
 
-        {/* Clear + counter */}
-        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* Actions row */}
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           {hasFilters && (
             <button type="button" className="btn-secondary" onClick={clearFilters}>
-              Wyczyść filtry
+              {t('history.clearFilters')}
             </button>
           )}
-          <span style={{ fontSize: 13, color: '#94a3b8' }}>
-            Pokazuje {visits.length} z {total} wizyt
+          <button
+            type="button"
+            className="btn-secondary btn-icon"
+            onClick={handleExport}
+            disabled={visits.length === 0}
+          >
+            <Download size={15} />
+            {t('history.export')}
+          </button>
+          <span style={{ fontSize: 13, color: '#94a3b8', marginLeft: 'auto' }}>
+            {t('history.showingOf', { current: visits.length, total })}
           </span>
         </div>
       </div>
 
       {loading ? (
-        <div className="empty-state">Ładowanie…</div>
+        <div className="empty-state">{t('history.loading')}</div>
       ) : visits.length === 0 ? (
-        <div className="empty-state">Brak wizyt dla wybranych filtrów</div>
+        <div className="empty-state">{t('history.noResults')}</div>
       ) : (
         <div className="card">
           <table className="table">
             <thead>
               <tr>
-                <th>Data</th>
-                <th>Pacjent</th>
-                <th>Właściciel</th>
-                <th>Powód</th>
-                <th>Kategoria</th>
-                <th>Czas ocz.</th>
-                <th>Status</th>
+                <th>{t('history.colDate')}</th>
+                <th>{t('history.colPatient')}</th>
+                <th>{t('history.colOwner')}</th>
+                <th>{t('history.colReason')}</th>
+                <th>{t('history.colCategory')}</th>
+                <th>{t('history.colWaitTime')}</th>
+                <th>{t('history.colStatus')}</th>
               </tr>
             </thead>
             <tbody>
@@ -244,9 +267,9 @@ export default function HistoryPage() {
                     <span className="text-muted text-sm">{v.ownerPhone}</span>
                   </td>
                   <td className="reason-cell">{v.reason}</td>
-                  <td><span className={`pill pill-${v.triageCategory.toLowerCase()}`}>{CAT_LABEL[v.triageCategory]}</span></td>
+                  <td><span className={`pill pill-${v.triageCategory.toLowerCase()}`}>{t(`cat.${v.triageCategory}`)}</span></td>
                   <td>{v.triageCategory === 'RED' ? '—' : `${v.waitingMinutes} min`}</td>
-                  <td><span className={`status-badge status-${v.status.toLowerCase()}`}>{STATUS_LABEL[v.status]}</span></td>
+                  <td><span className={`status-badge status-${v.status.toLowerCase()}`}>{t(`status.${v.status}`)}</span></td>
                 </tr>
               ))}
             </tbody>
