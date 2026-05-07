@@ -14,7 +14,16 @@
     "loading": "Signing in…",
     "noAccount": "Don't have an account?",
     "registerLink": "Register clinic",
-    "error": "Invalid email or password"
+    "forgotPassword": "Forgot your password?",
+    "error": "Invalid email or password",
+    "verifiedBanner": "Account activated! You can now sign in.",
+    "resetBanner": "Password changed! You can now sign in.",
+    "invalidTokenBanner": "The verification link has expired or is invalid.",
+    "emailNotVerified": "Please confirm your email address before signing in.",
+    "resendVerification": "Didn't receive the email? Resend",
+    "resendSent": "Verification link sent!",
+    "resendLoading": "Sending…",
+    "sessionExpiredBanner": "Session expired. Please sign in again."
   },
   "register": {
     "title": "Register clinic",
@@ -22,12 +31,43 @@
     "clinicNamePlaceholder": "Veterinary Clinic XYZ",
     "email": "Email",
     "password": "Password",
-    "passwordPlaceholder": "Minimum 6 characters",
+    "passwordPlaceholder": "Minimum 8 characters",
+    "confirmPassword": "Confirm password",
+    "confirmPasswordPlaceholder": "Repeat password",
+    "pwdLength": "At least 8 characters",
+    "pwdUpper": "Uppercase letter (A–Z)",
+    "pwdLower": "Lowercase letter (a–z)",
+    "pwdDigit": "Digit (0–9)",
+    "pwdMatch": "Passwords must match",
     "submit": "Create account",
     "loading": "Registering…",
     "hasAccount": "Already have an account?",
     "loginLink": "Sign in",
-    "error": "Registration failed"
+    "error": "Registration failed",
+    "successTitle": "Check your email",
+    "successMsg": "We sent an activation link to {{email}}. Click the link to activate your account and sign in.",
+    "goToLogin": "Go to sign in"
+  },
+  "forgotPassword": {
+    "title": "Reset password",
+    "email": "Clinic email",
+    "submit": "Send reset link",
+    "loading": "Sending…",
+    "successTitle": "Check your inbox",
+    "successMsg": "If an account with that address exists, we sent a password reset link. The link is valid for 1 hour.",
+    "backToLogin": "Back to sign in",
+    "error": "Failed to send link. Please try again."
+  },
+  "resetPassword": {
+    "title": "Set new password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Change password",
+    "loading": "Saving…",
+    "invalidToken": "The password reset link has expired or is invalid.",
+    "invalidTokenLink": "Request a new link",
+    "error": "Failed to change password. Please try again.",
+    "pwdMatch": "Passwords must match"
   },
   "newVisit": {
     "title": "New visit",
@@ -63,7 +103,9 @@
     "overrideClear": "Clear",
     "submit": "Register visit",
     "loading": "Registering…",
-    "error": "Failed to register visit. Please try again."
+    "error": "Failed to register visit. Please try again.",
+    "fieldRequired": "This field is required",
+    "phoneInvalid": "Phone must have at least 9 digits"
   },
   "symptoms": {
     "groupRespiratory": "Respiratory",
@@ -108,7 +150,11 @@
     "colWaitTime": "Wait time",
     "colTime": "Time",
     "accept": "Accepted",
-    "now": "Now"
+    "now": "Now",
+    "confirmTitle": "Confirm acceptance",
+    "confirmMsg": "Are you sure you want to mark {{name}} as accepted? The patient will be removed from the queue.",
+    "confirmYes": "Confirm",
+    "confirmNo": "Cancel"
   },
   "history": {
     "title": "Visit history",
@@ -152,7 +198,18 @@
     "csvReason": "Visit reason",
     "csvCategory": "Triage category",
     "csvWaitMin": "Wait time (min)",
-    "csvStatus": "Status"
+    "csvStatus": "Status",
+    "search": "Search",
+    "searchPlaceholder": "Animal name or owner…",
+    "editBtn": "Edit",
+    "printBtn": "Print",
+    "editTitle": "Edit visit",
+    "editCategory": "Triage category",
+    "editWaitMinutes": "Wait time (min)",
+    "editStatus": "Status",
+    "editReason": "Visit reason",
+    "editSave": "Save changes",
+    "editSaving": "Saving…"
   },
   "settings": {
     "title": "Settings",
@@ -181,8 +238,9 @@
   },
   "queue": {
     "title": "Current queue",
-    "patients_one": "{{count}} patient",
-    "patients_other": "{{count}} patients",
+    "empty": "No patients in queue",
+    "onePatient": "1 patient",
+    "manyPatients": "{{count}} patients",
     "noPatients": "No patients in queue",
     "colNo": "No.",
     "colAnimal": "Animal name",
@@ -196,6 +254,53 @@
     "catYellow": "LESS URGENT",
     "catGreen": "ROUTINE",
     "appName": "VetTriage"
+  },
+  "landing": {
+    "tagline": "Intelligent veterinary triage system",
+    "loginBtn": "Sign in",
+    "registerBtn": "Register clinic",
+    "aboutBtn": "About",
+    "features": {
+      "fast": { "icon": "⚡", "title": "Fast classification", "desc": "The VTL algorithm automatically assigns a triage category based on reported symptoms and visit reason." },
+      "live":  { "icon": "📡", "title": "Live queue",          "desc": "Queue view updates in real time via WebSocket. Perfect for a waiting room display." },
+      "history": { "icon": "📊", "title": "History & statistics", "desc": "Full visit history with filters, CSV export, and statistics by triage category." }
+    },
+    "categoriesTitle": "Triage categories",
+    "cat": {
+      "RED":    { "name": "Red – Critical",    "desc": "Immediate life threat. Requires immediate intervention.",         "examples": "Respiratory arrest, shock, seizures, massive hemorrhage" },
+      "ORANGE": { "name": "Orange – Urgent",   "desc": "Serious condition, risk of deterioration. Needs rapid assessment.", "examples": "Breathing difficulty, severe pain, multi-site trauma" },
+      "YELLOW": { "name": "Yellow – Less urgent", "desc": "Stable condition, but requires evaluation. Can wait briefly.", "examples": "Vomiting, fever, lameness, open wound" },
+      "GREEN":  { "name": "Green – Routine",   "desc": "Stable patient. Routine or preventive visit.",                   "examples": "Vaccination, check-up, grooming" }
+    },
+    "footerDesc": "Software for veterinary clinics"
+  },
+  "about": {
+    "back": "Back",
+    "subtitle": "Veterinary triage system based on VTL",
+    "whatIsTitle": "What is VetTriage?",
+    "whatIsDesc": "VetTriage is a patient queue management system for veterinary clinics, based on the Veterinary Triage List (VTL). The algorithm automatically classifies patients based on reported symptoms and assigns a priority category with an estimated wait time.",
+    "categoriesTitle": "VTL Triage Categories",
+    "cat": {
+      "RED":    { "name": "Critical",    "desc": "Immediate life threat. Patient must be seen immediately." },
+      "ORANGE": { "name": "Urgent",      "desc": "Serious condition, risk of deterioration without rapid intervention." },
+      "YELLOW": { "name": "Less urgent", "desc": "Stable condition, requires evaluation within a reasonable time." },
+      "GREEN":  { "name": "Routine",     "desc": "Stable patient, routine or preventive visit." }
+    },
+    "baseWait": "base wait",
+    "examplesLabel": "Example symptoms:",
+    "algorithmTitle": "Wait time calculation algorithm",
+    "algorithmDesc": "The system calculates wait time by multiplying a base time (depending on time of day and clinic load) by the category multiplier. The Red category never waits — patients are seen immediately.",
+    "algorithmFormula": "time = base_time × category_multiplier  (RED=×1, ORANGE=×2, YELLOW=×4, GREEN=×8)"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "desc": "Sorry, we couldn't find this page.",
+    "home": "Back to home"
+  },
+  "errors": {
+    "network": "Cannot reach the server. Check your internet connection.",
+    "server": "Server error. Please try again.",
+    "sessionExpired": "Session expired. Please sign in again."
   },
   "common": {
     "live": "Live",

@@ -88,11 +88,14 @@ const INITIAL: FormState = {
   ownerFullName: '', ownerAddress: '', ownerPhone: '',
 };
 
+function onlyDigits(s: string) { return s.replace(/\D/g, ''); }
+
 export default function NewVisitPage() {
   const [form, setForm] = useState<FormState>(INITIAL);
   const [symptoms, setSymptoms] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [manualCategory, setManualCategory] = useState<TriageCategory | ''>('');
   const [manualMinutes, setManualMinutes] = useState('');
@@ -115,8 +118,35 @@ export default function NewVisitPage() {
       return next;
     });
 
+  // Validation
+  const phoneDigits = onlyDigits(form.ownerPhone);
+  const fieldErrors = {
+    reason:       !form.reason.trim(),
+    animalName:   !form.animalName.trim(),
+    species:      !form.species.trim(),
+    ownerFullName:!form.ownerFullName.trim(),
+    ownerPhone:   !form.ownerPhone.trim() || phoneDigits.length < 9,
+    ageYears:     form.ageYears !== '' && Number(form.ageYears) < 0,
+    weightKg:     form.weightKg !== '' && Number(form.weightKg) < 0,
+  };
+  const hasErrors = Object.values(fieldErrors).some(Boolean);
+
+  const fieldError = (field: keyof typeof fieldErrors) => {
+    if (!submitted) return null;
+    if (!fieldErrors[field]) return null;
+    if (field === 'ownerPhone' && form.ownerPhone.trim() && phoneDigits.length < 9) {
+      return <span className="field-error">{t('newVisit.phoneInvalid')}</span>;
+    }
+    return <span className="field-error">{t('newVisit.fieldRequired')}</span>;
+  };
+
+  const inputClass = (field: keyof typeof fieldErrors) =>
+    submitted && fieldErrors[field] ? 'field-invalid' : '';
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setSubmitted(true);
+    if (hasErrors) return;
     setLoading(true);
     setError('');
     try {
@@ -147,14 +177,16 @@ export default function NewVisitPage() {
   return (
     <div className="page">
       <h1 className="page-title">{t('newVisit.title')}</h1>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
 
         <div className="card mb-4">
           <h2 className="section-title">{t('newVisit.sectionReason')}</h2>
           <div className="field">
             <label>{t('newVisit.reasonLabel')}</label>
-            <textarea value={form.reason} onChange={set('reason')} required rows={3}
+            <textarea value={form.reason} onChange={set('reason')} rows={3}
+              className={inputClass('reason')}
               placeholder={t('newVisit.reasonPlaceholder')} />
+            {fieldError('reason')}
           </div>
           <div className="symptom-groups">
             {SYMPTOM_GROUPS.map(group => (
@@ -182,11 +214,17 @@ export default function NewVisitPage() {
           <div className="form-grid">
             <div className="field">
               <label>{t('newVisit.animalName')}</label>
-              <input value={form.animalName} onChange={set('animalName')} required placeholder={t('newVisit.animalNamePlaceholder')} />
+              <input value={form.animalName} onChange={set('animalName')}
+                className={inputClass('animalName')}
+                placeholder={t('newVisit.animalNamePlaceholder')} />
+              {fieldError('animalName')}
             </div>
             <div className="field">
               <label>{t('newVisit.species')}</label>
-              <input value={form.species} onChange={set('species')} required placeholder={t('newVisit.speciesPlaceholder')} />
+              <input value={form.species} onChange={set('species')}
+                className={inputClass('species')}
+                placeholder={t('newVisit.speciesPlaceholder')} />
+              {fieldError('species')}
             </div>
             <div className="field">
               <label>{t('newVisit.breed')}</label>
@@ -219,7 +257,10 @@ export default function NewVisitPage() {
           <div className="form-grid">
             <div className="field field-wide">
               <label>{t('newVisit.ownerFullName')}</label>
-              <input value={form.ownerFullName} onChange={set('ownerFullName')} required placeholder={t('newVisit.ownerFullNamePlaceholder')} />
+              <input value={form.ownerFullName} onChange={set('ownerFullName')}
+                className={inputClass('ownerFullName')}
+                placeholder={t('newVisit.ownerFullNamePlaceholder')} />
+              {fieldError('ownerFullName')}
             </div>
             <div className="field field-wide">
               <label>{t('newVisit.ownerAddress')}</label>
@@ -227,7 +268,10 @@ export default function NewVisitPage() {
             </div>
             <div className="field">
               <label>{t('newVisit.ownerPhone')}</label>
-              <input type="tel" value={form.ownerPhone} onChange={set('ownerPhone')} required placeholder="600 000 000" />
+              <input type="tel" value={form.ownerPhone} onChange={set('ownerPhone')}
+                className={inputClass('ownerPhone')}
+                placeholder="600 000 000" />
+              {fieldError('ownerPhone')}
             </div>
           </div>
         </div>
@@ -254,10 +298,7 @@ export default function NewVisitPage() {
               <div className="form-grid">
                 <div className="field">
                   <label>{t('newVisit.overrideCategoryLabel')}</label>
-                  <select
-                    value={manualCategory}
-                    onChange={e => setManualCategory(e.target.value as TriageCategory | '')}
-                  >
+                  <select value={manualCategory} onChange={e => setManualCategory(e.target.value as TriageCategory | '')}>
                     <option value="">{t('newVisit.overrideCategoryAuto')}</option>
                     {CATEGORIES.map(cat => (
                       <option key={cat} value={cat}>{cat} — {t(`cat.${cat}`)}</option>
@@ -274,11 +315,8 @@ export default function NewVisitPage() {
                     )}
                   </label>
                   <input
-                    type="number"
-                    min={1}
-                    max={999}
-                    value={manualMinutes}
-                    onChange={e => setManualMinutes(e.target.value)}
+                    type="number" min={1} max={999}
+                    value={manualMinutes} onChange={e => setManualMinutes(e.target.value)}
                     placeholder={previewMinutes !== null ? String(previewMinutes) : 'np. 30'}
                   />
                 </div>
@@ -301,7 +339,12 @@ export default function NewVisitPage() {
 
         {error && <p className="form-error mb-4">{error}</p>}
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? t('newVisit.loading') : t('newVisit.submit')}
+          {loading ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />
+              {t('newVisit.loading')}
+            </span>
+          ) : t('newVisit.submit')}
         </button>
       </form>
     </div>

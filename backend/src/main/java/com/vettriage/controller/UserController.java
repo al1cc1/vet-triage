@@ -4,6 +4,7 @@ import com.vettriage.dto.user.CreateDoctorRequest;
 import com.vettriage.dto.user.UserResponse;
 import com.vettriage.security.ClaimsPrincipal;
 import com.vettriage.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Tag(name = "Użytkownicy", description = "Zarządzanie lekarzami kliniki")
 public class UserController {
 
     private final UserService userService;

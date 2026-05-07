@@ -1,9 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
-import { register as apiRegister } from '../api/auth';
-import type { Role } from '../types';
+import { resetPassword as apiResetPassword } from '../api/auth';
 
 interface PwdRule {
   key: string;
@@ -17,59 +15,54 @@ const PWD_RULES: PwdRule[] = [
   { key: 'pwdDigit',  test: pw => /\d/.test(pw) },
 ];
 
-export default function RegisterPage() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [pwdTouched, setPwdTouched] = useState(false);
   const [confirmTouched, setConfirmTouched] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [successEmail, setSuccessEmail] = useState('');
-  const { login } = useAuth();
+  const [error, setError] = useState('');
+  const [invalidToken, setInvalidToken] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
 
+  const token = searchParams.get('token') ?? '';
   const pwdValid = PWD_RULES.every(r => r.test(password));
   const pwdMatch = password === confirm;
-  const canSubmit = pwdValid && pwdMatch && name.trim() && email.trim() && confirm.trim();
+  const canSubmit = pwdValid && pwdMatch && confirm.trim();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || !token) return;
     setLoading(true);
     setError('');
     try {
-      const data = await apiRegister({ name, email, password });
-      if (data.autoLogin && data.token) {
-        login({ token: data.token, role: data.role as Role, clinicCode: data.clinicCode!, clinicId: data.clinicId! });
-        navigate('/triage');
-      } else {
-        setSuccessEmail(email);
-      }
+      await apiResetPassword(token, password);
+      navigate('/login?reset=true');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
         ?.response?.data?.message;
-      setError(msg ?? t('register.error'));
+      if (msg === 'INVALID_RESET_TOKEN') {
+        setInvalidToken(true);
+      } else {
+        setError(t('resetPassword.error'));
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  if (successEmail) {
+  if (!token || invalidToken) {
     return (
       <div className="auth-bg">
         <div className="auth-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 8 }}>📧</div>
-          <h1 className="auth-title">{t('register.successTitle')}</h1>
-          <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '12px 0 0' }}>
-            {t('register.successMsg', { email: successEmail })}
-          </p>
+          <div style={{ fontSize: 52, marginBottom: 8 }}>⚠️</div>
+          <h1 className="auth-title" style={{ color: '#dc2626' }}>{t('resetPassword.invalidToken')}</h1>
           <p style={{ marginTop: 28 }}>
-            <Link to="/login" className="btn-primary"
+            <Link to="/forgot-password" className="btn-primary"
               style={{ display: 'inline-block', padding: '10px 28px', borderRadius: 8, textDecoration: 'none', fontSize: 15 }}>
-              {t('register.goToLogin')}
+              {t('resetPassword.invalidTokenLink')}
             </Link>
           </p>
         </div>
@@ -81,32 +74,15 @@ export default function RegisterPage() {
     <div className="auth-bg">
       <div className="auth-card">
         <div className="auth-logo">🐾 VetTriage</div>
-        <h1 className="auth-title">{t('register.title')}</h1>
+        <h1 className="auth-title">{t('resetPassword.title')}</h1>
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="field">
-            <label>{t('register.clinicName')}</label>
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required autoFocus placeholder={t('register.clinicNamePlaceholder')}
-            />
-          </div>
-          <div className="field">
-            <label>{t('register.email')}</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required placeholder="kontakt@klinika.pl"
-            />
-          </div>
-          <div className="field">
-            <label>{t('register.password')}</label>
+            <label>{t('resetPassword.newPassword')}</label>
             <input
               type="password"
               value={password}
               onChange={e => { setPassword(e.target.value); setPwdTouched(true); }}
-              required placeholder={t('register.passwordPlaceholder')}
+              required autoFocus placeholder="••••••••"
             />
             {pwdTouched && (
               <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none', fontSize: 13 }}>
@@ -123,21 +99,21 @@ export default function RegisterPage() {
             )}
           </div>
           <div className="field">
-            <label>{t('register.confirmPassword')}</label>
+            <label>{t('resetPassword.confirmPassword')}</label>
             <input
               type="password"
               value={confirm}
               onChange={e => { setConfirm(e.target.value); setConfirmTouched(true); }}
-              required placeholder={t('register.confirmPasswordPlaceholder')}
+              required placeholder="••••••••"
             />
             {confirmTouched && confirm && !pwdMatch && (
               <p style={{ margin: '6px 0 0', color: '#dc2626', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 700 }}>✗</span>{t('register.pwdMatch')}
+                <span style={{ fontWeight: 700 }}>✗</span>{t('resetPassword.pwdMatch')}
               </p>
             )}
             {confirmTouched && confirm && pwdMatch && (
               <p style={{ margin: '6px 0 0', color: '#16a34a', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 700 }}>✓</span>{t('register.pwdMatch')}
+                <span style={{ fontWeight: 700 }}>✓</span>{t('resetPassword.pwdMatch')}
               </p>
             )}
           </div>
@@ -145,14 +121,11 @@ export default function RegisterPage() {
           <button type="submit" className="btn-primary btn-block" disabled={loading || !canSubmit}>
             {loading ? (
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Spinner /> {t('register.loading')}
+                <Spinner /> {t('resetPassword.loading')}
               </span>
-            ) : t('register.submit')}
+            ) : t('resetPassword.submit')}
           </button>
         </form>
-        <p className="auth-footer">
-          {t('register.hasAccount')} <Link to="/login">{t('register.loginLink')}</Link>
-        </p>
       </div>
     </div>
   );

@@ -14,7 +14,16 @@
     "loading": "Logowanie…",
     "noAccount": "Nie masz konta?",
     "registerLink": "Zarejestruj klinikę",
-    "error": "Nieprawidłowy email lub hasło"
+    "forgotPassword": "Nie pamiętasz hasła?",
+    "error": "Nieprawidłowy email lub hasło",
+    "verifiedBanner": "Konto aktywowane! Możesz się zalogować.",
+    "resetBanner": "Hasło zostało zmienione! Możesz się teraz zalogować.",
+    "invalidTokenBanner": "Link weryfikacyjny wygasł lub jest nieprawidłowy.",
+    "emailNotVerified": "Potwierdź adres email przed zalogowaniem.",
+    "resendVerification": "Nie dotarł email? Wyślij ponownie",
+    "resendSent": "Link weryfikacyjny wysłany!",
+    "resendLoading": "Wysyłanie…",
+    "sessionExpiredBanner": "Sesja wygasła. Zaloguj się ponownie."
   },
   "register": {
     "title": "Rejestracja kliniki",
@@ -22,12 +31,43 @@
     "clinicNamePlaceholder": "Klinika Weterynaryjna XYZ",
     "email": "Email",
     "password": "Hasło",
-    "passwordPlaceholder": "Minimum 6 znaków",
+    "passwordPlaceholder": "Minimum 8 znaków",
+    "confirmPassword": "Powtórz hasło",
+    "confirmPasswordPlaceholder": "Powtórz hasło",
+    "pwdLength": "Co najmniej 8 znaków",
+    "pwdUpper": "Wielka litera (A–Z)",
+    "pwdLower": "Mała litera (a–z)",
+    "pwdDigit": "Cyfra (0–9)",
+    "pwdMatch": "Hasła muszą być zgodne",
     "submit": "Załóż konto",
     "loading": "Rejestracja…",
     "hasAccount": "Masz już konto?",
     "loginLink": "Zaloguj się",
-    "error": "Rejestracja nie powiodła się"
+    "error": "Rejestracja nie powiodła się",
+    "successTitle": "Sprawdź swoją skrzynkę email",
+    "successMsg": "Wysłaliśmy link aktywacyjny na adres {{email}}. Kliknij w link, aby aktywować konto i zalogować się.",
+    "goToLogin": "Przejdź do logowania"
+  },
+  "forgotPassword": {
+    "title": "Resetowanie hasła",
+    "email": "Email kliniki",
+    "submit": "Wyślij link resetujący",
+    "loading": "Wysyłanie…",
+    "successTitle": "Sprawdź skrzynkę email",
+    "successMsg": "Jeśli konto z tym adresem istnieje, wysłaliśmy link do resetowania hasła. Link jest ważny przez 1 godzinę.",
+    "backToLogin": "Wróć do logowania",
+    "error": "Nie udało się wysłać linku. Spróbuj ponownie."
+  },
+  "resetPassword": {
+    "title": "Ustaw nowe hasło",
+    "newPassword": "Nowe hasło",
+    "confirmPassword": "Powtórz nowe hasło",
+    "submit": "Zmień hasło",
+    "loading": "Zapisywanie…",
+    "invalidToken": "Link do resetowania hasła wygasł lub jest nieprawidłowy.",
+    "invalidTokenLink": "Poproś o nowy link",
+    "error": "Nie udało się zmienić hasła. Spróbuj ponownie.",
+    "pwdMatch": "Hasła muszą być zgodne"
   },
   "newVisit": {
     "title": "Nowa wizyta",
@@ -63,7 +103,9 @@
     "overrideClear": "Wyczyść",
     "submit": "Zarejestruj wizytę",
     "loading": "Rejestracja…",
-    "error": "Nie udało się zarejestrować wizyty. Spróbuj ponownie."
+    "error": "Nie udało się zarejestrować wizyty. Spróbuj ponownie.",
+    "fieldRequired": "To pole jest wymagane",
+    "phoneInvalid": "Telefon musi zawierać co najmniej 9 cyfr"
   },
   "symptoms": {
     "groupRespiratory": "Oddechowe",
@@ -108,7 +150,11 @@
     "colWaitTime": "Czas oczekiwania",
     "colTime": "Godzina",
     "accept": "Przyjęty",
-    "now": "Teraz"
+    "now": "Teraz",
+    "confirmTitle": "Potwierdź przyjęcie",
+    "confirmMsg": "Czy na pewno chcesz oznaczyć {{name}} jako przyjętego? Pacjent zostanie usunięty z kolejki.",
+    "confirmYes": "Potwierdź",
+    "confirmNo": "Anuluj"
   },
   "history": {
     "title": "Historia wizyt",
@@ -152,7 +198,18 @@
     "csvReason": "Powód wizyty",
     "csvCategory": "Kategoria triażu",
     "csvWaitMin": "Czas oczekiwania (min)",
-    "csvStatus": "Status"
+    "csvStatus": "Status",
+    "search": "Szukaj",
+    "searchPlaceholder": "Imię zwierzęcia lub właściciel…",
+    "editBtn": "Edytuj",
+    "printBtn": "Drukuj",
+    "editTitle": "Edytuj wizytę",
+    "editCategory": "Kategoria triażu",
+    "editWaitMinutes": "Czas oczekiwania (min)",
+    "editStatus": "Status",
+    "editReason": "Powód wizyty",
+    "editSave": "Zapisz zmiany",
+    "editSaving": "Zapisywanie…"
   },
   "settings": {
     "title": "Ustawienia",
@@ -181,8 +238,9 @@
   },
   "queue": {
     "title": "Aktualna kolejka",
-    "patients_one": "{{count}} pacjent",
-    "patients_other": "{{count}} pacjentów",
+    "empty": "Brak pacjentów w kolejce",
+    "onePatient": "1 pacjent",
+    "manyPatients": "{{count}} pacjentów",
     "noPatients": "Brak pacjentów w kolejce",
     "colNo": "Lp.",
     "colAnimal": "Imię zwierzęcia",
@@ -196,6 +254,53 @@
     "catYellow": "MNIEJ PILNY",
     "catGreen": "PLANOWY",
     "appName": "VetTriage"
+  },
+  "landing": {
+    "tagline": "Inteligentny system triażu weterynaryjnego",
+    "loginBtn": "Zaloguj się",
+    "registerBtn": "Zarejestruj klinikę",
+    "aboutBtn": "O aplikacji",
+    "features": {
+      "fast": { "icon": "⚡", "title": "Szybka klasyfikacja", "desc": "Algorytm VTL automatycznie przypisuje kategorię triażu na podstawie objawów i powodu wizyty." },
+      "live":  { "icon": "📡", "title": "Kolejka na żywo",    "desc": "Widok kolejki aktualizuje się w czasie rzeczywistym przez WebSocket. Idealne na ekran poczekalni." },
+      "history": { "icon": "📊", "title": "Historia i statystyki", "desc": "Pełna historia wizyt z filtrami, eksportem CSV i statystykami według kategorii triażu." }
+    },
+    "categoriesTitle": "Kategorie triażu",
+    "cat": {
+      "RED":    { "name": "Czerwony – Krytyczny",    "desc": "Bezpośrednie zagrożenie życia. Wymaga natychmiastowej interwencji.",  "examples": "Zatrzymanie oddechu, wstrząs, drgawki, masywny krwotok" },
+      "ORANGE": { "name": "Pomarańczowy – Pilny",    "desc": "Stan poważny, ryzyko pogorszenia. Wymaga szybkiej oceny.",           "examples": "Trudności oddechowe, silny ból, uraz wielomiejscowy" },
+      "YELLOW": { "name": "Żółty – Mniej pilny",     "desc": "Stan stabilny, ale wymaga oceny. Może poczekać krótki czas.",        "examples": "Wymioty, gorączka, kulawizna, otwarta rana" },
+      "GREEN":  { "name": "Zielony – Planowy",       "desc": "Pacjent stabilny. Wizyta kontrolna lub profilaktyczna.",             "examples": "Szczepienie, kontrola, pielęgnacja" }
+    },
+    "footerDesc": "Oprogramowanie dla klinik weterynaryjnych"
+  },
+  "about": {
+    "back": "Powrót",
+    "subtitle": "System triażu weterynaryjnego oparty na VTL",
+    "whatIsTitle": "Czym jest VetTriage?",
+    "whatIsDesc": "VetTriage to system zarządzania kolejką pacjentów w klinikach weterynaryjnych, oparty na Veterinary Triage List (VTL). Algorytm automatycznie klasyfikuje pacjentów na podstawie zgłoszonych objawów i przypisuje im kategorię pilności wraz z szacowanym czasem oczekiwania.",
+    "categoriesTitle": "Kategorie triażu VTL",
+    "cat": {
+      "RED":    { "name": "Krytyczny",    "desc": "Bezpośrednie zagrożenie życia. Pacjent musi być przyjęty natychmiast." },
+      "ORANGE": { "name": "Pilny",        "desc": "Poważny stan, ryzyko pogorszenia bez szybkiej interwencji." },
+      "YELLOW": { "name": "Mniej pilny",  "desc": "Stan stabilny, wymaga oceny w rozsądnym czasie." },
+      "GREEN":  { "name": "Planowy",      "desc": "Pacjent stabilny, wizyta rutynowa lub profilaktyczna." }
+    },
+    "baseWait": "czas bazowy",
+    "examplesLabel": "Przykładowe objawy:",
+    "algorithmTitle": "Algorytm obliczania czasu oczekiwania",
+    "algorithmDesc": "System oblicza czas oczekiwania mnożąc bazowy czas (zależny od pory dnia i obciążenia kliniki) przez mnożnik kategorii. Czerwona kategoria nigdy nie czeka — przyjmowana jest natychmiast.",
+    "algorithmFormula": "czas = czas_bazowy × mnożnik_kategorii  (RED=×1, ORANGE=×2, YELLOW=×4, GREEN=×8)"
+  },
+  "notFound": {
+    "title": "Strona nie istnieje",
+    "desc": "Przepraszamy, nie możemy znaleźć tej strony.",
+    "home": "Wróć na stronę główną"
+  },
+  "errors": {
+    "network": "Brak połączenia z serwerem. Sprawdź połączenie internetowe.",
+    "server": "Błąd serwera. Spróbuj ponownie.",
+    "sessionExpired": "Sesja wygasła. Zaloguj się ponownie."
   },
   "common": {
     "live": "Na żywo",

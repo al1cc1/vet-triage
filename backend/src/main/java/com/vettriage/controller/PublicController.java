@@ -4,6 +4,7 @@ import com.vettriage.dto.visit.VisitResponse;
 import com.vettriage.model.Clinic;
 import com.vettriage.repository.ClinicRepository;
 import com.vettriage.service.VisitService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/public")
 @RequiredArgsConstructor
+@Tag(name = "Publiczne", description = "Endpointy publiczne: kolejka i ustawienia kliniki")
 public class PublicController {
 
     private final VisitService visitService;

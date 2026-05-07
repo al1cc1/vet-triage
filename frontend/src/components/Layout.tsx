@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { PlusCircle, Activity, History, Settings, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { PlusCircle, Activity, History, Settings, LogOut, Menu, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { getSettings } from '../api/clinic';
@@ -8,13 +8,18 @@ import { getSettings } from '../api/clinic';
 export default function Layout() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     getSettings()
       .then(s => document.documentElement.style.setProperty('--accent', s.accentColor))
       .catch(() => {});
   }, []);
+
+  // Close sidebar on navigation
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   const NAV = [
     { to: '/new-visit', icon: PlusCircle, label: t('nav.newVisit') },
@@ -25,7 +30,20 @@ export default function Layout() {
 
   return (
     <div className="layout">
-      <aside className="sidebar">
+      {/* Mobile header strip */}
+      <div className="page-header-mobile">
+        <button className="hamburger" onClick={() => setSidebarOpen(o => !o)} aria-label="Menu">
+          {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+        <span style={{ fontWeight: 700, fontSize: 15 }}>🐾 VetTriage</span>
+      </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
         <div className="sidebar-logo">🐾 VetTriage</div>
         <nav className="sidebar-nav">
           {NAV.map(({ to, icon: Icon, label }) => (
@@ -47,6 +65,7 @@ export default function Layout() {
           <span>{t('nav.logout')}</span>
         </button>
       </aside>
+
       <main className="content">
         <Outlet />
       </main>

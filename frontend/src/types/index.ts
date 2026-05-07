@@ -28,6 +28,15 @@ export interface AuthResponse {
   clinicId: string;
 }
 
+export interface RegisterResponse {
+  autoLogin: boolean;
+  message: string;
+  token?: string;
+  role?: string;
+  clinicCode?: string;
+  clinicId?: string;
+}
+
 export interface ClinicSettings {
   accentColor: string;
   language: string;
@@ -39,6 +48,13 @@ export interface UserResponse {
   id: string;
   email: string;
   role: Role;
+}
+
+export interface UpdateVisitPayload {
+  triageCategory?: TriageCategory;
+  waitingMinutes?: number;
+  status?: VisitStatus;
+  reason?: string;
 }
 
 export interface CreateVisitPayload {

@@ -2,6 +2,7 @@ package com.vettriage.service;
 
 import com.vettriage.algorithm.TriageAlgorithm;
 import com.vettriage.dto.visit.CreateVisitRequest;
+import com.vettriage.dto.visit.UpdateVisitRequest;
 import com.vettriage.dto.visit.VisitResponse;
 import com.vettriage.model.*;
 import com.vettriage.repository.ClinicRepository;
@@ -84,18 +85,33 @@ public class VisitService {
     }
 
     @Transactional
+    public VisitResponse updateVisit(UUID visitId, UUID clinicId, UpdateVisitRequest req) {
+        Visit visit = visitRepository.findById(visitId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Visit not found"));
+        if (!visit.getClinic().getId().equals(clinicId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+
+        if (req.getTriageCategory() != null) visit.setTriageCategory(req.getTriageCategory());
+        if (req.getWaitingMinutes() != null)  visit.setWaitingMinutes(req.getWaitingMinutes());
+        if (req.getStatus() != null)          visit.setStatus(req.getStatus());
+        if (req.getReason() != null && !req.getReason().isBlank()) visit.setReason(req.getReason());
+
+        visit = visitRepository.save(visit);
+        broadcastQueue(visit.getClinic().getClinicCode());
+        return toResponse(visit);
+    }
+
+    @Transactional
     public void removeVisit(UUID visitId, UUID clinicId) {
         Visit visit = visitRepository.findById(visitId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Visit not found"));
 
-        if (!visit.getClinic().getId().equals(clinicId)) {
+        if (!visit.getClinic().getId().equals(clinicId))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
-        }
 
         String clinicCode = visit.getClinic().getClinicCode();
         visitRepository.delete(visit);
         visitRepository.flush();
-
         broadcastQueue(clinicCode);
     }
 
@@ -124,8 +140,8 @@ public class VisitService {
     @Transactional(readOnly = true)
     public List<VisitResponse> getFilteredHistory(UUID clinicId, LocalDate dateFrom, LocalDate dateTo,
                                                    List<TriageCategory> categories, String species,
-                                                   VisitStatus status) {
-        var spec = VisitSpecification.build(clinicId, dateFrom, dateTo, categories, species, status);
+                                                   VisitStatus status, String search) {
+        var spec = VisitSpecification.build(clinicId, dateFrom, dateTo, categories, species, status, search);
         return visitRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "createdAt"))
                 .stream().map(this::toResponse).toList();
     }
@@ -134,9 +150,8 @@ public class VisitService {
     public VisitResponse acceptVisit(UUID visitId, UUID clinicId) {
         Visit visit = visitRepository.findById(visitId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Visit not found"));
-        if (!visit.getClinic().getId().equals(clinicId)) {
+        if (!visit.getClinic().getId().equals(clinicId))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
-        }
         visit.setStatus(VisitStatus.DONE);
         visit = visitRepository.save(visit);
         broadcastQueue(visit.getClinic().getClinicCode());

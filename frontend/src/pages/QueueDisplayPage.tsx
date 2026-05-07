@@ -102,7 +102,11 @@ export default function QueueDisplayPage() {
         <div style={{ fontSize: 20, fontWeight: 700, color: '#334155', marginBottom: 24 }}>
           {t('queue.title')} &nbsp;
           <span style={{ fontSize: 16, fontWeight: 500, color: '#64748b' }}>
-            ({t('queue.patients', { count: visits.length })})
+            {(() => {
+              const patientCount = visits.length;
+              const countLabel = patientCount === 0 ? t('queue.empty') : patientCount === 1 ? t('queue.onePatient') : t('queue.manyPatients', { count: patientCount });
+              return `(${countLabel})`;
+            })()}
           </span>
         </div>
 

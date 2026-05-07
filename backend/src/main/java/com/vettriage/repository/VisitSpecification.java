@@ -17,7 +17,7 @@ public class VisitSpecification {
 
     public static Specification<Visit> build(UUID clinicId, LocalDate dateFrom, LocalDate dateTo,
                                               List<TriageCategory> categories, String species,
-                                              VisitStatus status) {
+                                              VisitStatus status, String search) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -42,6 +42,13 @@ public class VisitSpecification {
                 } else {
                     predicates.add(cb.like(speciesPath, "%" + species.toLowerCase() + "%"));
                 }
+            }
+
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.toLowerCase() + "%";
+                Predicate byAnimal = cb.like(cb.lower(root.get("animal").get("name")), pattern);
+                Predicate byOwner  = cb.like(cb.lower(root.get("owner").get("fullName")), pattern);
+                predicates.add(cb.or(byAnimal, byOwner));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

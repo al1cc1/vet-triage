@@ -12,6 +12,7 @@ interface AuthContextType extends AuthState {
   login: (data: AuthState) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  initializing: boolean;
 }
 
 const STORAGE_KEY = 'vt_auth';
@@ -30,6 +31,15 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(loadStored);
+  const [initializing, setInitializing] = useState(true);
+
+  useEffect(() => {
+    // Restore token header and mark initialization complete
+    if (auth.token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
+    }
+    setInitializing(false);
+  }, []);
 
   useEffect(() => {
     if (auth.token) {
@@ -45,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => setAuth(empty);
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout, isAuthenticated: !!auth.token }}>
+    <AuthContext.Provider value={{ ...auth, login, logout, isAuthenticated: !!auth.token, initializing }}>
       {children}
     </AuthContext.Provider>
   );

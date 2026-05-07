@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
-import { Download } from 'lucide-react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { Download, Edit2, Printer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { getFilteredHistory } from '../api/visits';
+import { getFilteredHistory, updateVisit } from '../api/visits';
 import { exportVisitsCSV } from '../utils/csvExport';
-import type { VisitResponse, TriageCategory, VisitStatus } from '../types';
+import type { VisitResponse, TriageCategory, VisitStatus, UpdateVisitPayload } from '../types';
+import Modal from '../components/Modal';
 
 const CATEGORIES: TriageCategory[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN'];
 const CAT_COLOR: Record<TriageCategory, string> = {
@@ -21,6 +22,61 @@ function formatDateTime(iso: string) {
   });
 }
 
+function printVisit(v: VisitResponse, clinicCode: string) {
+  const w = window.open('', '_blank', 'width=800,height=600');
+  if (!w) return;
+  const catColor: Record<TriageCategory, string> = {
+    RED: '#ef4444', ORANGE: '#f97316', YELLOW: '#eab308', GREEN: '#22c55e',
+  };
+  const catLabel: Record<TriageCategory, string> = {
+    RED: 'CZERWONY – KRYTYCZNY', ORANGE: 'POMARAŃCZOWY – PILNY',
+    YELLOW: 'ŻÓŁTY – MNIEJ PILNY', GREEN: 'ZIELONY – PLANOWY',
+  };
+  w.document.write(`<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">
+    <title>Karta pacjenta – ${v.animalName}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:32px}
+      h1{font-size:20px;font-weight:800;margin-bottom:4px}
+      .logo{font-size:16px;font-weight:700;color:#22c55e;margin-bottom:16px}
+      .badge{display:inline-block;padding:4px 14px;border-radius:99px;color:#fff;font-weight:700;font-size:13px;margin-bottom:8px}
+      .section{margin:16px 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+      .row{display:flex;gap:32px;flex-wrap:wrap;margin-bottom:6px}
+      .field label{font-size:11px;color:#64748b;display:block}
+      .field span{font-size:13px;font-weight:500}
+      @media print{body{padding:0}button{display:none}}
+    </style>
+  </head><body>
+    <div class="logo">🐾 VetTriage — ${clinicCode}</div>
+    <h1>Karta pacjenta</h1>
+    <p style="color:#64748b;font-size:12px;margin-bottom:16px">${formatDateTime(v.createdAt)}</p>
+    <span class="badge" style="background:${catColor[v.triageCategory]}">${catLabel[v.triageCategory]}</span>
+    <div class="section">Dane zwierzęcia</div>
+    <div class="row">
+      <div class="field"><label>Imię</label><span>${v.animalName}</span></div>
+      <div class="field"><label>Gatunek</label><span>${v.species}</span></div>
+      ${v.breed ? `<div class="field"><label>Rasa</label><span>${v.breed}</span></div>` : ''}
+      <div class="field"><label>Płeć</label><span>${v.gender === 'MALE' ? 'Samiec' : 'Samica'}</span></div>
+      ${v.ageYears != null ? `<div class="field"><label>Wiek</label><span>${v.ageYears} lat</span></div>` : ''}
+      ${v.color ? `<div class="field"><label>Maść</label><span>${v.color}</span></div>` : ''}
+      ${v.weightKg != null ? `<div class="field"><label>Masa</label><span>${v.weightKg} kg</span></div>` : ''}
+    </div>
+    <div class="section">Dane właściciela</div>
+    <div class="row">
+      <div class="field"><label>Imię i nazwisko</label><span>${v.ownerFullName}</span></div>
+      <div class="field"><label>Telefon</label><span>${v.ownerPhone}</span></div>
+    </div>
+    <div class="section">Wizyta</div>
+    <div style="margin-bottom:10px"><label style="font-size:11px;color:#64748b">Powód wizyty</label><br><span style="font-size:13px">${v.reason}</span></div>
+    <div class="row">
+      <div class="field"><label>Czas oczekiwania</label><span>${v.triageCategory === 'RED' ? 'Natychmiast' : v.waitingMinutes + ' min'}</span></div>
+      <div class="field"><label>Status</label><span>${v.status}</span></div>
+    </div>
+    <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
 export default function HistoryPage() {
   const { clinicCode } = useAuth();
   const { t } = useTranslation();
@@ -29,6 +85,7 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const totalSet = useRef(false);
 
+  // Filters
   const [dateMode, setDateMode] = useState<DateMode>('range');
   const [singleDate, setSingleDate] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -36,13 +93,26 @@ export default function HistoryPage() {
   const [categories, setCategories] = useState<Set<TriageCategory>>(new Set());
   const [species, setSpecies] = useState('');
   const [statusFilter, setStatusFilter] = useState<VisitStatus | ''>('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
+  // Edit modal
+  const [editVisit, setEditVisit] = useState<VisitResponse | null>(null);
+  const [editForm, setEditForm] = useState<UpdateVisitPayload>({});
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const hasFilters = !!(
     (dateMode === 'single' ? singleDate : dateFrom || dateTo) ||
-    categories.size > 0 || species || statusFilter
+    categories.size > 0 || species || statusFilter || search
   );
 
-  useEffect(() => {
+  const fetchVisits = useCallback(() => {
     if (!clinicCode) return;
     setLoading(true);
     const params: Parameters<typeof getFilteredHistory>[0] = {};
@@ -55,6 +125,7 @@ export default function HistoryPage() {
     if (categories.size > 0) params.category = [...categories];
     if (species) params.species = species;
     if (statusFilter) params.status = statusFilter;
+    if (search) params.search = search;
 
     getFilteredHistory(params)
       .then(data => {
@@ -63,7 +134,9 @@ export default function HistoryPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [clinicCode, dateMode, singleDate, dateFrom, dateTo, categories, species, statusFilter]);
+  }, [clinicCode, dateMode, singleDate, dateFrom, dateTo, categories, species, statusFilter, search]);
+
+  useEffect(() => { fetchVisits(); }, [fetchVisits]);
 
   const toggleCategory = (cat: TriageCategory) => {
     setCategories(prev => {
@@ -76,6 +149,7 @@ export default function HistoryPage() {
   const clearFilters = () => {
     setSingleDate(''); setDateFrom(''); setDateTo('');
     setCategories(new Set()); setSpecies(''); setStatusFilter('');
+    setSearchInput(''); setSearch('');
   };
 
   const stats = useMemo(() => ({
@@ -87,20 +161,36 @@ export default function HistoryPage() {
 
   const handleExport = () => {
     exportVisitsCSV(visits, {
-      date:       t('history.csvDate'),
-      animalName: t('history.csvAnimalName'),
-      species:    t('history.csvSpecies'),
-      breed:      t('history.csvBreed'),
-      gender:     t('history.csvGender'),
-      age:        t('history.csvAge'),
-      weight:     t('history.csvWeight'),
-      owner:      t('history.csvOwner'),
-      phone:      t('history.csvPhone'),
-      reason:     t('history.csvReason'),
-      category:   t('history.csvCategory'),
-      waitMin:    t('history.csvWaitMin'),
-      status:     t('history.csvStatus'),
+      date: t('history.csvDate'), animalName: t('history.csvAnimalName'),
+      species: t('history.csvSpecies'), breed: t('history.csvBreed'),
+      gender: t('history.csvGender'), age: t('history.csvAge'),
+      weight: t('history.csvWeight'), owner: t('history.csvOwner'),
+      phone: t('history.csvPhone'), reason: t('history.csvReason'),
+      category: t('history.csvCategory'), waitMin: t('history.csvWaitMin'),
+      status: t('history.csvStatus'),
     });
+  };
+
+  const openEdit = (v: VisitResponse) => {
+    setEditVisit(v);
+    setEditForm({
+      triageCategory: v.triageCategory,
+      waitingMinutes: v.waitingMinutes,
+      status: v.status,
+      reason: v.reason,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editVisit) return;
+    setEditSaving(true);
+    try {
+      await updateVisit(editVisit.id, editForm);
+      setEditVisit(null);
+      fetchVisits();
+    } catch { /* error toast via interceptor */ } finally {
+      setEditSaving(false);
+    }
   };
 
   return (
@@ -109,30 +199,32 @@ export default function HistoryPage() {
 
       {/* Stats line */}
       <div style={{ fontSize: 14, color: '#475569', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: '0 16px', alignItems: 'center' }}>
-        <span>
-          {t('history.found', { count: visits.length }).replace('<bold>', '').replace('</bold>', '')}
-        </span>
+        <span>{t('history.found', { count: visits.length }).replace('<bold>', '').replace('</bold>', '')}</span>
         <span style={{ color: '#cbd5e1' }}>|</span>
         {CATEGORIES.map(cat => (
-          <span key={cat}>
-            <strong style={{ color: CAT_COLOR[cat] }}>{cat}: {stats[cat]}</strong>
-          </span>
+          <span key={cat}><strong style={{ color: CAT_COLOR[cat] }}>{cat}: {stats[cat]}</strong></span>
         ))}
         {hasFilters && (
-          <>
-            <span style={{ color: '#cbd5e1' }}>|</span>
-            <span style={{ color: '#64748b' }}>{t('history.showingOf', { current: visits.length, total })}</span>
-          </>
+          <><span style={{ color: '#cbd5e1' }}>|</span>
+          <span style={{ color: '#64748b' }}>{t('history.showingOf', { current: visits.length, total })}</span></>
         )}
       </div>
 
-      {/* Filters */}
+      {/* Filters card */}
       <div className="card mb-4">
+        {/* Search */}
+        <div className="field" style={{ marginBottom: 14 }}>
+          <label>{t('history.search')}</label>
+          <input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder={t('history.searchPlaceholder')}
+          />
+        </div>
+
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           {(['range', 'single'] as DateMode[]).map(m => (
-            <button
-              key={m}
-              type="button"
+            <button key={m} type="button"
               onClick={() => { setDateMode(m); setSingleDate(''); setDateFrom(''); setDateTo(''); }}
               style={{
                 padding: '5px 16px', borderRadius: 6, border: '1px solid',
@@ -165,7 +257,6 @@ export default function HistoryPage() {
               </div>
             </>
           )}
-
           <div className="field">
             <label>{t('history.speciesLabel')}</label>
             <select value={species} onChange={e => setSpecies(e.target.value)}>
@@ -176,14 +267,11 @@ export default function HistoryPage() {
               <option value="inne">{t('history.speciesOther')}</option>
             </select>
           </div>
-
           <div className="field">
             <label>{t('history.statusLabel')}</label>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as VisitStatus | '')}>
               <option value="">{t('history.statusAll')}</option>
-              {STATUSES.map(s => (
-                <option key={s} value={s}>{t(`status.${s}`)}</option>
-              ))}
+              {STATUSES.map(s => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
             </select>
           </div>
         </div>
@@ -194,10 +282,7 @@ export default function HistoryPage() {
           {CATEGORIES.map(cat => {
             const active = categories.has(cat);
             return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => toggleCategory(cat)}
+              <button key={cat} type="button" onClick={() => toggleCategory(cat)}
                 style={{
                   padding: '4px 14px', borderRadius: 99, border: '2px solid',
                   borderColor: active ? CAT_COLOR[cat] : '#e2e8f0',
@@ -205,9 +290,7 @@ export default function HistoryPage() {
                   color: active ? '#fff' : CAT_COLOR[cat],
                   fontWeight: 700, fontSize: 13, cursor: 'pointer',
                 }}
-              >
-                {cat}
-              </button>
+              >{cat}</button>
             );
           })}
         </div>
@@ -219,14 +302,8 @@ export default function HistoryPage() {
               {t('history.clearFilters')}
             </button>
           )}
-          <button
-            type="button"
-            className="btn-secondary btn-icon"
-            onClick={handleExport}
-            disabled={visits.length === 0}
-          >
-            <Download size={15} />
-            {t('history.export')}
+          <button type="button" className="btn-secondary btn-icon" onClick={handleExport} disabled={visits.length === 0}>
+            <Download size={15} /> {t('history.export')}
           </button>
           <span style={{ fontSize: 13, color: '#94a3b8', marginLeft: 'auto' }}>
             {t('history.showingOf', { current: visits.length, total })}
@@ -245,11 +322,12 @@ export default function HistoryPage() {
               <tr>
                 <th>{t('history.colDate')}</th>
                 <th>{t('history.colPatient')}</th>
-                <th>{t('history.colOwner')}</th>
-                <th>{t('history.colReason')}</th>
+                <th className="col-hide-mobile">{t('history.colOwner')}</th>
+                <th className="col-hide-mobile">{t('history.colReason')}</th>
                 <th>{t('history.colCategory')}</th>
-                <th>{t('history.colWaitTime')}</th>
+                <th className="col-hide-mobile">{t('history.colWaitTime')}</th>
                 <th>{t('history.colStatus')}</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -257,24 +335,81 @@ export default function HistoryPage() {
                 <tr key={v.id}>
                   <td className="text-muted text-sm">{formatDateTime(v.createdAt)}</td>
                   <td>
-                    <strong>{v.animalName}</strong>
-                    <br />
+                    <strong>{v.animalName}</strong><br />
                     <span className="text-muted text-sm">{v.species}{v.breed ? ` · ${v.breed}` : ''}</span>
                   </td>
-                  <td>
-                    {v.ownerFullName}
-                    <br />
+                  <td className="col-hide-mobile">
+                    {v.ownerFullName}<br />
                     <span className="text-muted text-sm">{v.ownerPhone}</span>
                   </td>
-                  <td className="reason-cell">{v.reason}</td>
+                  <td className="reason-cell col-hide-mobile">{v.reason}</td>
                   <td><span className={`pill pill-${v.triageCategory.toLowerCase()}`}>{t(`cat.${v.triageCategory}`)}</span></td>
-                  <td>{v.triageCategory === 'RED' ? '—' : `${v.waitingMinutes} min`}</td>
+                  <td className="col-hide-mobile">{v.triageCategory === 'RED' ? '—' : `${v.waitingMinutes} min`}</td>
                   <td><span className={`status-badge status-${v.status.toLowerCase()}`}>{t(`status.${v.status}`)}</span></td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="btn-secondary btn-icon" style={{ padding: '4px 8px', fontSize: 12 }}
+                        onClick={() => openEdit(v)} title={t('history.editBtn')}>
+                        <Edit2 size={13} /> <span className="col-hide-mobile">{t('history.editBtn')}</span>
+                      </button>
+                      <button className="btn-secondary btn-icon" style={{ padding: '4px 8px', fontSize: 12 }}
+                        onClick={() => printVisit(v, clinicCode ?? '')} title={t('history.printBtn')}>
+                        <Printer size={13} /> <span className="col-hide-mobile">{t('history.printBtn')}</span>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Edit modal */}
+      {editVisit && (
+        <Modal
+          title={t('history.editTitle')}
+          onClose={() => setEditVisit(null)}
+          footer={
+            <>
+              <button className="btn-secondary" onClick={() => setEditVisit(null)}>
+                {t('triage.confirmNo')}
+              </button>
+              <button className="btn-primary" onClick={handleSaveEdit} disabled={editSaving}>
+                {editSaving ? t('history.editSaving') : t('history.editSave')}
+              </button>
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="field">
+              <label>{t('history.editCategory')}</label>
+              <select value={editForm.triageCategory ?? ''}
+                onChange={e => setEditForm(f => ({ ...f, triageCategory: e.target.value as TriageCategory }))}>
+                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat} — {t(`cat.${cat}`)}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>{t('history.editWaitMinutes')}</label>
+              <input type="number" min={0}
+                value={editForm.waitingMinutes ?? ''}
+                onChange={e => setEditForm(f => ({ ...f, waitingMinutes: Number(e.target.value) }))} />
+            </div>
+            <div className="field">
+              <label>{t('history.editStatus')}</label>
+              <select value={editForm.status ?? ''}
+                onChange={e => setEditForm(f => ({ ...f, status: e.target.value as VisitStatus }))}>
+                {STATUSES.map(s => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>{t('history.editReason')}</label>
+              <textarea rows={3}
+                value={editForm.reason ?? ''}
+                onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))} />
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

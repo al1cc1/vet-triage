@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Client } from '@stomp/stompjs';
 import { CheckCircle, Wifi, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { getQueue, acceptVisit } from '../api/visits';
 import type { VisitResponse, TriageCategory } from '../types';
 import { useMinuteTick } from '../hooks/useMinuteTick';
 import { formatWaitTime } from '../utils/waitTime';
+import Modal from '../components/Modal';
 
 function TriagePill({ cat }: { cat: TriageCategory }) {
   const { t } = useTranslation();
@@ -21,37 +22,63 @@ export default function TriageLivePage() {
   const { clinicCode } = useAuth();
   const [visits, setVisits] = useState<VisitResponse[]>([]);
   const [connected, setConnected] = useState(false);
+  const [wsEverConnected, setWsEverConnected] = useState(false);
+  const [confirmVisit, setConfirmVisit] = useState<VisitResponse | null>(null);
+  const [accepting, setAccepting] = useState(false);
   const clientRef = useRef<Client | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { t } = useTranslation();
   useMinuteTick();
 
-  useEffect(() => {
+  const fetchQueue = useCallback(() => {
     if (!clinicCode) return;
     getQueue(clinicCode).then(setVisits).catch(() => {});
+  }, [clinicCode]);
+
+  useEffect(() => {
+    if (!clinicCode) return;
+    fetchQueue();
+    pollRef.current = setInterval(fetchQueue, 5000);
 
     const client = new Client({
       brokerURL: 'ws://localhost:8080/ws',
       reconnectDelay: 5000,
       onConnect: () => {
         setConnected(true);
+        setWsEverConnected(true);
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
         client.subscribe(`/topic/queue/${clinicCode}`, frame => {
           setVisits(JSON.parse(frame.body) as VisitResponse[]);
         });
       },
-      onDisconnect: () => setConnected(false),
-      onStompError: () => setConnected(false),
+      onDisconnect: () => {
+        setConnected(false);
+        if (!pollRef.current) pollRef.current = setInterval(fetchQueue, 5000);
+      },
+      onStompError: () => {
+        setConnected(false);
+        if (!pollRef.current) pollRef.current = setInterval(fetchQueue, 5000);
+      },
     });
 
     client.activate();
     clientRef.current = client;
-    return () => { client.deactivate(); };
-  }, [clinicCode]);
+    return () => {
+      client.deactivate();
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
+  }, [clinicCode, fetchQueue]);
 
-  const handleAccept = async (id: string) => {
+  const handleConfirmAccept = async () => {
+    if (!confirmVisit) return;
+    setAccepting(true);
+    const id = confirmVisit.id;
     try {
       await acceptVisit(id);
-    } catch {
-      /* broadcast will update the list */
+      setVisits(prev => prev.filter(v => v.id !== id));
+      setConfirmVisit(null);
+    } catch { /* broadcast will update the list */ } finally {
+      setAccepting(false);
     }
   };
 
@@ -59,9 +86,13 @@ export default function TriageLivePage() {
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">{t('triage.title')}</h1>
-        <span className={`ws-badge${connected ? ' connected' : ''}`}>
-          {connected ? <><Wifi size={14} /> {t('common.live') ?? 'Na żywo'}</> : <><WifiOff size={14} /> {t('common.disconnected') ?? 'Rozłączony'}</>}
-        </span>
+        {wsEverConnected && (
+          <span className={`ws-badge${connected ? ' connected' : ''}`}>
+            {connected
+              ? <><Wifi size={14} /> {t('common.live')}</>
+              : <><WifiOff size={14} /> {t('common.disconnected')}</>}
+          </span>
+        )}
       </div>
 
       {visits.length === 0 ? (
@@ -73,10 +104,10 @@ export default function TriageLivePage() {
               <tr>
                 <th>{t('triage.colNo')}</th>
                 <th>{t('triage.colPatient')}</th>
-                <th>{t('triage.colReason')}</th>
+                <th className="col-hide-mobile">{t('triage.colReason')}</th>
                 <th>{t('triage.colCategory')}</th>
                 <th>{t('triage.colWaitTime')}</th>
-                <th>{t('triage.colTime')}</th>
+                <th className="col-hide-mobile">{t('triage.colTime')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -89,18 +120,18 @@ export default function TriageLivePage() {
                     <br />
                     <span className="text-muted text-sm">{v.species}{v.breed ? ` · ${v.breed}` : ''}</span>
                   </td>
-                  <td className="reason-cell">{v.reason}</td>
+                  <td className="reason-cell col-hide-mobile">{v.reason}</td>
                   <td><TriagePill cat={v.triageCategory} /></td>
                   <td>
                     {v.triageCategory === 'RED'
                       ? <span className="text-urgent">{t('triage.now')}</span>
                       : formatWaitTime(v)}
                   </td>
-                  <td className="text-muted">{formatTime(v.createdAt)}</td>
+                  <td className="text-muted col-hide-mobile">{formatTime(v.createdAt)}</td>
                   <td>
                     <button
                       className="btn-accept"
-                      onClick={() => handleAccept(v.id)}
+                      onClick={() => setConfirmVisit(v)}
                       title={t('triage.accept')}
                     >
                       <CheckCircle size={16} />
@@ -112,6 +143,27 @@ export default function TriageLivePage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {confirmVisit && (
+        <Modal
+          title={t('triage.confirmTitle')}
+          onClose={() => setConfirmVisit(null)}
+          footer={
+            <>
+              <button className="btn-secondary" onClick={() => setConfirmVisit(null)}>
+                {t('triage.confirmNo')}
+              </button>
+              <button className="btn-primary" onClick={handleConfirmAccept} disabled={accepting}>
+                {accepting ? '…' : t('triage.confirmYes')}
+              </button>
+            </>
+          }
+        >
+          <p style={{ color: '#475569', lineHeight: 1.7 }}>
+            {t('triage.confirmMsg', { name: confirmVisit.animalName })}
+          </p>
+        </Modal>
       )}
     </div>
   );
