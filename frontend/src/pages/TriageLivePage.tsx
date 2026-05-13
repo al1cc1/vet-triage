@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Client } from '@stomp/stompjs';
+import { WS_URL } from '../config';
 import { CheckCircle, Wifi, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -41,7 +42,7 @@ export default function TriageLivePage() {
     pollRef.current = setInterval(fetchQueue, 5000);
 
     const client = new Client({
-      brokerURL: 'ws://localhost:8080/ws',
+      brokerURL: WS_URL,
       reconnectDelay: 5000,
       onConnect: () => {
         setConnected(true);

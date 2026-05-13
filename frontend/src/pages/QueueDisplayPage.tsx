@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Client } from '@stomp/stompjs';
+import { WS_URL } from '../config';
 import { useTranslation } from 'react-i18next';
 import type { VisitResponse, TriageCategory } from '../types';
 import api from '../api/axios';
@@ -52,7 +53,7 @@ export default function QueueDisplayPage() {
     fetchQueue();
 
     const client = new Client({
-      brokerURL: 'ws://localhost:8080/ws',
+      brokerURL: WS_URL,
       reconnectDelay: 5000,
       onConnect: () => {
         client.subscribe(`/topic/queue/${clinicCode}`, frame => {
