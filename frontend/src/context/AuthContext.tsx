@@ -31,9 +31,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const session = await verifySession();
         setState({ clinicId: session.clinicId, clinicCode: session.clinicCode });
-      } catch {
+        setInitializing(false);
+      } catch (err: unknown) {
+        const axiosErr = err as { response?: { status?: number; data?: { error?: string } } };
+        if (axiosErr.response?.status === 404 && axiosErr.response?.data?.error === 'clinic_not_found') {
+          await signOut(auth).catch(() => {});
+          window.location.replace('/register?reason=incomplete');
+          return; // page is navigating away — don't update state
+        }
         setState({ clinicId: null, clinicCode: null });
-      } finally {
         setInitializing(false);
       }
     });

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -28,6 +28,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [successEmail, setSuccessEmail] = useState('');
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const incompleteRegistration = searchParams.get('reason') === 'incomplete';
 
   const pwdValid = PWD_RULES.every(r => r.test(password));
   const pwdMatch = password === confirm;
@@ -83,6 +85,11 @@ export default function RegisterPage() {
       <div className="auth-card">
         <div className="auth-logo">🐾 VetTriage</div>
         <h1 className="auth-title">{t('register.title')}</h1>
+        {incompleteRegistration && (
+          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 14, color: '#713f12' }}>
+            Twoje konto Firebase istnieje, ale rejestracja kliniki nie została dokończona. Zarejestruj się ponownie.
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="field">
             <label>{t('register.clinicName')}</label>

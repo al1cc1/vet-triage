@@ -36,6 +36,7 @@ public class AuthController {
     @Operation(summary = "Rejestracja kliniki (Firebase UID z tokenu)")
     public ResponseEntity<SessionResponse> register(@RequestBody FirebaseRegisterRequest req,
                                                      HttpServletRequest httpRequest) {
+        log.info("AuthController.register: request received, clinicName='{}'", req.getClinicName());
         String token = extractBearer(httpRequest);
         if (token == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No token");
         FirebaseToken fbToken;
@@ -49,6 +50,7 @@ public class AuthController {
             log.error("Firebase token verification failed: {}", e.getMessage(), e);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid Firebase token: " + e.getMessage());
         }
+        log.info("AuthController.register: token verified, uid='{}', email='{}'", fbToken.getUid(), fbToken.getEmail());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(authService.registerClinic(fbToken.getUid(), fbToken.getEmail(), req.getClinicName()));
     }

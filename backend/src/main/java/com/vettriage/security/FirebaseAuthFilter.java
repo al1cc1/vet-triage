@@ -35,15 +35,17 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
         String token = extractToken(request);
 
         if (token != null) {
-            if (!tryFirebaseAuth(token)) {
-                tryJwtAuth(token);
-            }
+            boolean authed = tryFirebaseAuth(token, request, response);
+            if (response.isCommitted()) return; // clinic_not_found response already written
+            if (!authed) tryJwtAuth(token);
         }
 
         chain.doFilter(request, response);
     }
 
-    private boolean tryFirebaseAuth(String token) {
+    private boolean tryFirebaseAuth(String token,
+                                    HttpServletRequest request,
+                                    HttpServletResponse response) throws IOException {
         try {
             if (FirebaseApp.getApps().isEmpty()) {
                 log.warn("FirebaseAuthFilter: Firebase Admin SDK not initialized — skipping token verification");
@@ -52,17 +54,32 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             FirebaseToken decoded = FirebaseAuth.getInstance().verifyIdToken(token);
             String uid = decoded.getUid();
             log.debug("FirebaseAuthFilter: token verified, uid={}", uid);
-            return clinicRepository.findByFirebaseUid(uid).map(clinic -> {
+
+            var clinicOpt = clinicRepository.findByFirebaseUid(uid);
+            if (clinicOpt.isPresent()) {
+                var clinic = clinicOpt.get();
                 log.debug("FirebaseAuthFilter: clinic found, clinicId={}", clinic.getId());
                 var principal = new ClaimsPrincipal(decoded.getEmail(), clinic.getId().toString(), "RECEPTION");
                 var auth = new UsernamePasswordAuthenticationToken(
                         principal, null, List.of(new SimpleGrantedAuthority("ROLE_RECEPTION")));
                 SecurityContextHolder.getContext().setAuthentication(auth);
                 return true;
-            }).orElseGet(() -> {
-                log.warn("FirebaseAuthFilter: no clinic found for Firebase uid={} — user may not have completed backend registration", uid);
+            }
+
+            log.warn("FirebaseAuthFilter: no clinic found for Firebase uid={}", uid);
+
+            // Registration endpoint must be allowed through so the clinic can be created
+            boolean isRegisterRequest = "POST".equalsIgnoreCase(request.getMethod())
+                    && "/api/auth/register".equals(request.getRequestURI());
+            if (isRegisterRequest) {
                 return false;
-            });
+            }
+
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"error\":\"clinic_not_found\"}");
+            return false;
+
         } catch (Exception e) {
             log.error("FirebaseAuthFilter: token verification failed — {}", e.getMessage());
             return false;
