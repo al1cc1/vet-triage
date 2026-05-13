@@ -1,9 +1,114 @@
-import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, Mic, MicOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import { createVisit, getPreviewTime } from '../api/visits';
 import type { Gender, TriageCategory } from '../types';
+
+// Web Speech API type augmentation
+declare global {
+  interface Window {
+    SpeechRecognition?: { new(): SpeechRecognitionInstance };
+    webkitSpeechRecognition?: { new(): SpeechRecognitionInstance };
+  }
+}
+
+interface SpeechRecognitionInstance {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onstart: ((ev: Event) => void) | null;
+  onresult: ((ev: { resultIndex: number; results: SpeechRecognitionResultList }) => void) | null;
+  onerror: ((ev: { error: string }) => void) | null;
+  onend: ((ev: Event) => void) | null;
+}
+
+function useSpeechRecognition(onAppend: (text: string) => void) {
+  const [listening, setListening] = useState(false);
+  const [interim, setInterim] = useState('');
+  const recogRef = useRef<SpeechRecognitionInstance | null>(null);
+  const errorShownRef = useRef(false);
+
+  const supported = typeof window !== 'undefined' &&
+    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  const showToast = (text: string) =>
+    window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'message', text } }));
+
+  const toggle = () => {
+    if (!supported) return;
+    if (listening) {
+      console.log('[STT] stop requested');
+      recogRef.current?.stop();
+      return;
+    }
+    const SR = (window.SpeechRecognition ?? window.webkitSpeechRecognition)!;
+    const r = new SR();
+    const lang = i18n.language?.startsWith('en') ? 'en-US' : 'pl-PL';
+    r.lang = lang;
+    r.continuous = false;
+    r.interimResults = true;
+    errorShownRef.current = false;
+
+    r.onstart = () => {
+      console.log('[STT] onstart — mikrofon aktywny');
+      setListening(true);
+      setInterim('');
+    };
+
+    r.onresult = (e) => {
+      console.log('[STT] onresult', e.resultIndex, e.results.length);
+      let final = '';
+      let inter = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        else inter += e.results[i][0].transcript;
+      }
+      setInterim(inter);
+      if (final) {
+        console.log('[STT] final text:', final);
+        onAppend(final);
+        setInterim('');
+      }
+    };
+
+    r.onerror = (e) => {
+      console.error('[STT] onerror:', e.error);
+      if (!errorShownRef.current) {
+        errorShownRef.current = true;
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          showToast('Brak dostępu do mikrofonu. Kliknij ikonę kłódki w pasku adresu → Mikrofon → Zezwól, a następnie odśwież stronę.');
+        } else if (e.error === 'audio-capture') {
+          showToast('Nie znaleziono mikrofonu. Podłącz mikrofon i spróbuj ponownie.');
+        } else if (e.error === 'network') {
+          showToast('Błąd sieci — rozpoznawanie mowy wymaga połączenia z internetem.');
+        } else {
+          showToast(`Błąd rozpoznawania mowy: ${e.error}`);
+        }
+      }
+      setListening(false);
+      setInterim('');
+    };
+
+    r.onend = () => {
+      console.log('[STT] onend — sesja zakończona');
+      setListening(false);
+      setInterim('');
+    };
+
+    recogRef.current = r;
+    console.log('[STT] start(), lang:', lang);
+    r.start();
+  };
+
+  useEffect(() => () => { recogRef.current?.abort(); }, []);
+
+  return { supported, listening, interim, toggle };
+}
 
 const SYMPTOM_GROUPS: Array<{
   groupKey: string;
@@ -103,6 +208,14 @@ export default function NewVisitPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
+  const { supported: micSupported, listening, interim, toggle: toggleMic } =
+    useSpeechRecognition((text) =>
+      setForm(prev => ({
+        ...prev,
+        reason: prev.reason ? prev.reason + ' ' + text.trim() : text.trim(),
+      }))
+    );
+
   useEffect(() => {
     if (!manualCategory) { setPreviewMinutes(null); return; }
     getPreviewTime(manualCategory).then(r => setPreviewMinutes(r.waitingMinutes)).catch(() => {});
@@ -183,9 +296,43 @@ export default function NewVisitPage() {
           <h2 className="section-title">{t('newVisit.sectionReason')}</h2>
           <div className="field">
             <label>{t('newVisit.reasonLabel')}</label>
-            <textarea value={form.reason} onChange={set('reason')} rows={3}
-              className={inputClass('reason')}
-              placeholder={t('newVisit.reasonPlaceholder')} />
+            <div style={{ position: 'relative' }}>
+              <textarea
+                value={form.reason + (interim ? (form.reason ? ' ' : '') + interim : '')}
+                onChange={e => {
+                  // strip interim from end if listening, otherwise update normally
+                  if (listening && interim) {
+                    const base = e.target.value.slice(0, e.target.value.length - interim.length - (form.reason ? 1 : 0));
+                    setForm(prev => ({ ...prev, reason: base }));
+                  } else {
+                    set('reason')(e);
+                  }
+                }}
+                rows={3}
+                className={inputClass('reason')}
+                style={listening ? { borderColor: '#3b82f6', boxShadow: '0 0 0 3px rgba(59,130,246,.15)', paddingRight: 44 } : { paddingRight: micSupported ? 44 : undefined }}
+                placeholder={t('newVisit.reasonPlaceholder')}
+              />
+              {micSupported && (
+                <button
+                  type="button"
+                  onClick={toggleMic}
+                  title={listening ? 'Zatrzymaj nagrywanie' : 'Dyktuj tekst'}
+                  style={{
+                    position: 'absolute', top: 8, right: 8,
+                    width: 30, height: 30, borderRadius: '50%', border: 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer',
+                    background: listening ? '#ef4444' : '#e2e8f0',
+                    color: listening ? '#fff' : '#64748b',
+                    animation: listening ? 'micPulse 1.2s ease-in-out infinite' : 'none',
+                    transition: 'background .15s, color .15s',
+                  }}
+                >
+                  {listening ? <MicOff size={15} /> : <Mic size={15} />}
+                </button>
+              )}
+            </div>
             {fieldError('reason')}
           </div>
           <div className="symptom-groups">
