@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { forgotPassword as apiForgotPassword } from '../api/auth';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../firebase';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -15,7 +16,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError('');
     try {
-      await apiForgotPassword(email);
+      await sendPasswordResetEmail(auth, email);
       setSubmitted(true);
     } catch {
       setError(t('forgotPassword.error'));

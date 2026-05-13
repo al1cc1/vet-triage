@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,6 +34,7 @@ public class VisitController {
     private final TriageAlgorithm triageAlgorithm;
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Utwórz nową wizytę")
     public ResponseEntity<VisitResponse> createVisit(@RequestBody CreateVisitRequest request,
                                                       Authentication auth) {
@@ -42,6 +44,7 @@ public class VisitController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Edytuj wizytę (kategoria, czas, status, powód)")
     public ResponseEntity<VisitResponse> updateVisit(@PathVariable UUID id,
                                                       @RequestBody UpdateVisitRequest request,
@@ -51,6 +54,7 @@ public class VisitController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Usuń wizytę")
     public ResponseEntity<Void> removeVisit(@PathVariable UUID id, Authentication auth) {
         UUID clinicId = UUID.fromString(principal(auth).clinicId());
@@ -71,6 +75,7 @@ public class VisitController {
     }
 
     @GetMapping("/history")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Filtrowana historia wizyt")
     public ResponseEntity<List<VisitResponse>> getFilteredHistory(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
@@ -92,6 +97,7 @@ public class VisitController {
     }
 
     @PatchMapping("/{id}/accept")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Oznacz wizytę jako przyjętą")
     public ResponseEntity<VisitResponse> acceptVisit(@PathVariable UUID id, Authentication auth) {
         UUID clinicId = UUID.fromString(principal(auth).clinicId());

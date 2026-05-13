@@ -20,14 +20,14 @@ public class Clinic {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(unique = true)
+    private String firebaseUid;
+
     @Column(nullable = false)
     private String name;
 
     @Column(nullable = false, unique = true)
     private String email;
-
-    @Column(nullable = false)
-    private String passwordHash;
 
     @Column(nullable = false, unique = true, length = 8)
     private String clinicCode;
@@ -40,21 +40,16 @@ public class Clinic {
     @Column(nullable = false, length = 5)
     private String language = "pl";
 
+    @Column(name = "mobile_pin", length = 6)
+    private String mobilePin;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean not null default true")
+    private boolean notifyRed = true;
+
     @Builder.Default
     @Column(nullable = false, columnDefinition = "boolean not null default false")
-    private boolean emailVerified = false;
-
-    @Column(name = "verification_token")
-    private String verificationToken;
-
-    @Column(name = "verification_token_expiry")
-    private LocalDateTime verificationTokenExpiry;
-
-    @Column(name = "reset_token")
-    private String resetToken;
-
-    @Column(name = "reset_token_expiry")
-    private LocalDateTime resetTokenExpiry;
+    private boolean notifyOrange = false;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

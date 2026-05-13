@@ -15,4 +15,6 @@ public interface VisitRepository extends JpaRepository<Visit, UUID>, JpaSpecific
     List<Visit> findByClinicIdAndStatus(UUID clinicId, VisitStatus status);
     List<Visit> findByClinicIdAndCreatedAtBetween(UUID clinicId, LocalDateTime from, LocalDateTime to);
     long countByClinicIdAndStatusAndTriageCategory(UUID clinicId, VisitStatus status, TriageCategory category);
+    long countByClinicId(UUID clinicId);
+    void deleteAllByClinicId(UUID clinicId);
 }

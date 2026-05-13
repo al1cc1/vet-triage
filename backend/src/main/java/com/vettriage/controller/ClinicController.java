@@ -6,6 +6,7 @@ import com.vettriage.security.ClaimsPrincipal;
 import com.vettriage.service.ClinicService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +15,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/clinic")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class ClinicController {
 
     private final ClinicService clinicService;
@@ -29,6 +31,13 @@ public class ClinicController {
                                                                   Authentication auth) {
         UUID clinicId = UUID.fromString(principal(auth).clinicId());
         return ResponseEntity.ok(clinicService.updateSettings(clinicId, req));
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Void> deleteClinic(Authentication auth) {
+        UUID clinicId = UUID.fromString(principal(auth).clinicId());
+        clinicService.deleteClinic(clinicId);
+        return ResponseEntity.noContent().build();
     }
 
     private ClaimsPrincipal principal(Authentication auth) {

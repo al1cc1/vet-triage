@@ -23,6 +23,16 @@ Thumbs.db
 # Environment secrets
 .env
 backend/.env
+frontend/.env
+
+# Firebase credentials (never commit)
+firebase-service-account.json
+google-services.json
+
+# Accidentally created npm artifacts in backend
+backend/node_modules/
+backend/package.json
+backend/package-lock.json
 
 # Claude
 .claude/

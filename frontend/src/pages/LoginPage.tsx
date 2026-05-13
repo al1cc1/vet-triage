@@ -1,56 +1,66 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { auth } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { login as apiLogin, resendVerification } from '../api/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [migrated, setMigrated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
-  const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { t } = useTranslation();
+  const { isAuthenticated } = useAuth();
 
-  const verified = searchParams.get('verified') === 'true';
-  const reset = searchParams.get('reset') === 'true';
-  const invalidToken = searchParams.get('error') === 'invalid-token';
   const sessionExpired = searchParams.get('session') === 'expired';
+
+  useEffect(() => {
+    if (isAuthenticated) navigate('/triage', { replace: true });
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setEmailNotVerified(false);
+    setMigrated(false);
     try {
-      const data = await apiLogin({ email, password });
-      login({ token: data.token, role: data.role, clinicCode: data.clinicCode, clinicId: data.clinicId });
-      navigate('/triage');
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 403) {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      if (!cred.user.emailVerified) {
         setEmailNotVerified(true);
-      } else {
-        const msg = (err as { response?: { data?: { message?: string } } })
-          ?.response?.data?.message;
-        setError(msg ?? t('login.error'));
+        await auth.signOut();
+        setLoading(false);
+        return;
       }
-    } finally {
+      // keep spinner running; useEffect navigates when isAuthenticated becomes true
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'auth/invalid-credential' || code === 'auth/user-not-found') {
+        setMigrated(true);
+      } else {
+        setError(t('login.error'));
+      }
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
-    if (!email) return;
+    if (!email || !password) return;
     setResendLoading(true);
     try {
-      await resendVerification(email);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      await sendEmailVerification(cred.user);
+      await auth.signOut();
       setResendSent(true);
+    } catch {
+      // ignore
     } finally {
       setResendLoading(false);
     }
@@ -62,9 +72,6 @@ export default function LoginPage() {
         <div className="auth-logo">🐾 VetTriage</div>
         <h1 className="auth-title">{t('login.title')}</h1>
 
-        {verified && <Banner type="success">{t('login.verifiedBanner')}</Banner>}
-        {reset && <Banner type="success">{t('login.resetBanner')}</Banner>}
-        {invalidToken && <Banner type="error">{t('login.invalidTokenBanner')}</Banner>}
         {sessionExpired && <Banner type="error">{t('login.sessionExpiredBanner')}</Banner>}
 
         <form onSubmit={handleSubmit} className="auth-form">
@@ -93,11 +100,21 @@ export default function LoginPage() {
               {resendSent ? (
                 <p style={{ margin: 0, color: '#15803d', fontWeight: 600 }}>{t('login.resendSent')}</p>
               ) : (
-                <button type="button" onClick={handleResend} disabled={resendLoading || !email}
+                <button type="button" onClick={handleResend} disabled={resendLoading || !password}
                   style={{ background: 'none', border: 'none', color: '#ea580c', cursor: 'pointer', padding: 0, fontSize: 14, fontWeight: 600, textDecoration: 'underline' }}>
                   {resendLoading ? t('login.resendLoading') : t('login.resendVerification')}
                 </button>
               )}
+            </div>
+          )}
+
+          {migrated && (
+            <div style={{ background: '#fefce8', border: '1px solid #fde047', borderRadius: 8, padding: '12px 14px', fontSize: 14, color: '#854d0e' }}>
+              <p style={{ margin: '0 0 4px', fontWeight: 600 }}>{t('login.migratedTitle')}</p>
+              <p style={{ margin: '0 0 10px' }}>{t('login.migratedMsg')}</p>
+              <Link to="/register" style={{ display: 'inline-block', background: '#ca8a04', color: '#fff', borderRadius: 6, padding: '6px 16px', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                {t('login.migratedBtn')}
+              </Link>
             </div>
           )}
 
@@ -131,17 +148,11 @@ function Banner({ type, children }: { type: 'success' | 'error'; children: React
     <div style={{
       background: isSuccess ? '#f0fdf4' : '#fef2f2',
       border: `1px solid ${isSuccess ? '#86efac' : '#fca5a5'}`,
-      borderRadius: 8,
-      padding: '10px 14px',
-      marginBottom: 16,
-      color: isSuccess ? '#15803d' : '#dc2626',
-      fontSize: 14,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
+      borderRadius: 8, padding: '10px 14px', marginBottom: 16,
+      color: isSuccess ? '#15803d' : '#dc2626', fontSize: 14,
+      display: 'flex', alignItems: 'center', gap: 8,
     }}>
-      <span>{isSuccess ? '✓' : '✗'}</span>
-      {children}
+      <span>{isSuccess ? '✓' : '✗'}</span>{children}
     </div>
   );
 }

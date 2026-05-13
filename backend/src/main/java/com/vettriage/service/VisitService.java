@@ -10,6 +10,7 @@ import com.vettriage.repository.OwnerRepository;
 import com.vettriage.repository.VisitRepository;
 import com.vettriage.repository.VisitSpecification;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -26,6 +27,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class VisitService {
 
     private final VisitRepository visitRepository;
@@ -33,6 +35,8 @@ public class VisitService {
     private final OwnerRepository ownerRepository;
     private final TriageAlgorithm triageAlgorithm;
     private final SimpMessagingTemplate messagingTemplate;
+    private final DeviceTokenService deviceTokenService;
+    private final FirebaseService firebaseService;
 
     @Transactional
     public VisitResponse createVisit(CreateVisitRequest req, UUID clinicId) {
@@ -81,6 +85,17 @@ public class VisitService {
                 .build());
 
         broadcastQueue(clinic.getClinicCode());
+
+        boolean shouldNotify = (category == TriageCategory.RED && clinic.isNotifyRed())
+                || (category == TriageCategory.ORANGE && clinic.isNotifyOrange());
+        if (shouldNotify) {
+            List<String> fcmTokens = deviceTokenService.getApprovedFcmTokens(clinic.getClinicCode());
+            if (!fcmTokens.isEmpty()) {
+                String title = category == TriageCategory.RED ? "🚨 Pacjent KRYTYCZNY" : "🟠 Pacjent PILNY";
+                firebaseService.sendPushNotification(fcmTokens, title, req.getAnimalName() + " - " + req.getReason());
+            }
+        }
+
         return toResponse(visit);
     }
 

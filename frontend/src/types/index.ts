@@ -42,6 +42,18 @@ export interface ClinicSettings {
   language: string;
   clinicCode: string;
   name: string;
+  mobilePin?: string | null;
+  notifyRed: boolean;
+  notifyOrange: boolean;
+  createdAt: string;
+  totalVisits: number;
+}
+
+export interface DeviceToken {
+  id: string;
+  deviceName: string | null;
+  lastSeen: string;
+  approved: boolean;
 }
 
 export interface UserResponse {

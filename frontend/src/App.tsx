@@ -9,7 +9,6 @@ import AboutPage from './pages/AboutPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
 import NotFoundPage from './pages/NotFoundPage';
 import NewVisitPage from './pages/NewVisitPage';
 import TriageLivePage from './pages/TriageLivePage';
@@ -30,7 +29,6 @@ function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
           <Route path="/new-visit" element={<NewVisitPage />} />
           <Route path="/triage" element={<TriageLivePage />} />

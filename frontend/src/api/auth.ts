@@ -1,20 +1,14 @@
 import api from './axios';
-import type { AuthResponse, RegisterResponse } from '../types';
-
-export const register = (data: { name: string; email: string; password: string }) =>
-  api.post<RegisterResponse>('/auth/register', data).then(r => r.data);
-
-export const login = (data: { email: string; password: string }) =>
-  api.post<AuthResponse>('/auth/login', data).then(r => r.data);
+import type { AuthResponse } from '../types';
 
 export const doctorLogin = (data: { clinicCode: string; doctorPin: string }) =>
   api.post<AuthResponse>('/auth/doctor-login', data).then(r => r.data);
 
-export const resendVerification = (email: string) =>
-  api.post('/auth/resend-verification', { email }).then(r => r.data);
+export const mobileLogin = (data: { clinicCode: string; clinicPin: string }) =>
+  api.post<AuthResponse>('/auth/mobile-login', data).then(r => r.data);
 
-export const forgotPassword = (email: string) =>
-  api.post('/auth/forgot-password', { email }).then(r => r.data);
+export const registerClinic = (data: { clinicName: string }) =>
+  api.post<{ clinicId: string; clinicCode: string }>('/auth/register', data).then(r => r.data);
 
-export const resetPassword = (token: string, newPassword: string) =>
-  api.post('/auth/reset-password', { token, newPassword }).then(r => r.data);
+export const verifySession = () =>
+  api.post<{ clinicId: string; clinicCode: string }>('/auth/verify-session').then(r => r.data);

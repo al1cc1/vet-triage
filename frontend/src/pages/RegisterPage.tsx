@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
-import { register as apiRegister } from '../api/auth';
-import type { Role } from '../types';
+import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
+import { auth } from '../firebase';
+import { registerClinic } from '../api/auth';
 
 interface PwdRule {
   key: string;
@@ -27,8 +27,6 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [successEmail, setSuccessEmail] = useState('');
-  const { login } = useAuth();
-  const navigate = useNavigate();
   const { t } = useTranslation();
 
   const pwdValid = PWD_RULES.every(r => r.test(password));
@@ -41,17 +39,20 @@ export default function RegisterPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await apiRegister({ name, email, password });
-      if (data.autoLogin && data.token) {
-        login({ token: data.token, role: data.role as Role, clinicCode: data.clinicCode!, clinicId: data.clinicId! });
-        navigate('/triage');
-      } else {
-        setSuccessEmail(email);
-      }
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await sendEmailVerification(cred.user);
+      // Register clinic in backend while still signed in (token available)
+      await registerClinic({ clinicName: name });
+      await signOut(auth);
+      setSuccessEmail(email);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })
-        ?.response?.data?.message;
-      setError(msg ?? t('register.error'));
+      const code = (err as { code?: string })?.code;
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      if (code === 'auth/email-already-in-use') {
+        setError(t('register.error') + ' — email już istnieje');
+      } else {
+        setError(msg ?? t('register.error'));
+      }
     } finally {
       setLoading(false);
     }

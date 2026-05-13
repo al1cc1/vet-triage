@@ -1,61 +1,57 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import api from '../api/axios';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from '../firebase';
+import { verifySession } from '../api/auth';
 
 interface AuthState {
-  token: string | null;
-  role: string | null;
-  clinicCode: string | null;
   clinicId: string | null;
+  clinicCode: string | null;
 }
 
 interface AuthContextType extends AuthState {
-  login: (data: AuthState) => void;
-  logout: () => void;
   isAuthenticated: boolean;
   initializing: boolean;
-}
-
-const STORAGE_KEY = 'vt_auth';
-const empty: AuthState = { token: null, role: null, clinicCode: null, clinicId: null };
-
-function loadStored(): AuthState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as AuthState) : empty;
-  } catch {
-    return empty;
-  }
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [auth, setAuth] = useState<AuthState>(loadStored);
+  const [state, setState] = useState<AuthState>({ clinicId: null, clinicCode: null });
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    // Restore token header and mark initialization complete
-    if (auth.token) {
-      api.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
-    }
-    setInitializing(false);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setInitializing(true);
+      if (!user || !user.emailVerified) {
+        setState({ clinicId: null, clinicCode: null });
+        setInitializing(false);
+        return;
+      }
+      try {
+        const session = await verifySession();
+        setState({ clinicId: session.clinicId, clinicCode: session.clinicCode });
+      } catch {
+        setState({ clinicId: null, clinicCode: null });
+      } finally {
+        setInitializing(false);
+      }
+    });
+    return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    if (auth.token) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
-      api.defaults.headers.common['Authorization'] = `Bearer ${auth.token}`;
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-      delete api.defaults.headers.common['Authorization'];
-    }
-  }, [auth]);
-
-  const login = (data: AuthState) => setAuth(data);
-  const logout = () => setAuth(empty);
+  const logout = async () => {
+    await signOut(auth);
+    setState({ clinicId: null, clinicCode: null });
+  };
 
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout, isAuthenticated: !!auth.token, initializing }}>
+    <AuthContext.Provider value={{
+      ...state,
+      isAuthenticated: !!state.clinicId,
+      initializing,
+      logout,
+    }}>
       {children}
     </AuthContext.Provider>
   );

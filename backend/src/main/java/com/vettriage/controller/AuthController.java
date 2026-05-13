@@ -1,33 +1,65 @@
 package com.vettriage.controller;
 
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseToken;
 import com.vettriage.dto.auth.*;
+import com.vettriage.security.ClaimsPrincipal;
 import com.vettriage.service.AuthService;
+import com.vettriage.service.ClinicService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.net.URI;
-import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Autoryzacja", description = "Rejestracja, logowanie, weryfikacja email, reset hasła")
+@Slf4j
+@Tag(name = "Autoryzacja", description = "Rejestracja Firebase, logowanie lekarzy, sesja")
 public class AuthController {
 
     private final AuthService authService;
+    private final ClinicService clinicService;
 
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registerClinic(request));
+    @Operation(summary = "Rejestracja kliniki (Firebase UID z tokenu)")
+    public ResponseEntity<SessionResponse> register(@RequestBody FirebaseRegisterRequest req,
+                                                     HttpServletRequest httpRequest) {
+        String token = extractBearer(httpRequest);
+        if (token == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No token");
+        FirebaseToken fbToken;
+        try {
+            if (FirebaseApp.getApps().isEmpty())
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Firebase not initialized");
+            fbToken = FirebaseAuth.getInstance().verifyIdToken(token);
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Firebase token verification failed: {}", e.getMessage(), e);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid Firebase token: " + e.getMessage());
+        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(authService.registerClinic(fbToken.getUid(), fbToken.getEmail(), req.getClinicName()));
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    @PostMapping("/verify-session")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Weryfikacja sesji — zwraca clinicId i clinicCode")
+    public ResponseEntity<SessionResponse> verifySession(Authentication auth) {
+        UUID clinicId = UUID.fromString(((ClaimsPrincipal) auth.getPrincipal()).clinicId());
+        var settings = clinicService.getSettings(clinicId);
+        return ResponseEntity.ok(new SessionResponse(clinicId.toString(), settings.getClinicCode()));
     }
 
     @PostMapping("/doctor-login")
@@ -35,27 +67,15 @@ public class AuthController {
         return ResponseEntity.ok(authService.doctorLogin(request));
     }
 
-    @GetMapping("/verify")
-    public ResponseEntity<Void> verifyEmail(@RequestParam String token) {
-        String redirectUrl = authService.verifyEmail(token);
-        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(redirectUrl)).build();
+    @PostMapping("/mobile-login")
+    @Operation(summary = "Logowanie aplikacji mobilnej lekarza")
+    public ResponseEntity<AuthResponse> mobileLogin(@RequestBody MobileLoginRequest request) {
+        return ResponseEntity.ok(authService.mobileLogin(request));
     }
 
-    @PostMapping("/resend-verification")
-    public ResponseEntity<Map<String, String>> resendVerification(@RequestBody ResendVerificationRequest request) {
-        authService.resendVerification(request.getEmail());
-        return ResponseEntity.ok(Map.of("message", "Jeśli konto istnieje i nie zostało aktywowane, wysłaliśmy nowy link weryfikacyjny."));
-    }
-
-    @PostMapping("/forgot-password")
-    public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        authService.forgotPassword(request.getEmail());
-        return ResponseEntity.ok(Map.of("message", "Jeśli konto istnieje, wysłaliśmy link do resetowania hasła."));
-    }
-
-    @PostMapping("/reset-password")
-    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody ResetPasswordRequest request) {
-        authService.resetPassword(request.getToken(), request.getNewPassword());
-        return ResponseEntity.ok(Map.of("message", "Hasło zostało zmienione."));
+    private String extractBearer(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (StringUtils.hasText(header) && header.startsWith("Bearer ")) return header.substring(7);
+        return null;
     }
 }

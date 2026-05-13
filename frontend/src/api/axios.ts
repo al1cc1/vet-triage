@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { auth } from '../firebase';
 
 const api = axios.create({
   baseURL: '/api',
@@ -6,25 +7,22 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// Restore token on page load
-const stored = localStorage.getItem('vt_auth');
-if (stored) {
-  try {
-    const { token } = JSON.parse(stored) as { token: string };
-    if (token) api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } catch { /* ignore */ }
-}
+api.interceptors.request.use(async (config) => {
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 api.interceptors.response.use(
   response => response,
-  error => {
+  async error => {
     if (!error.response) {
-      // Network error or timeout
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'network' } }));
     } else if (error.response.status === 401) {
-      // Session expired — clear storage and redirect
-      localStorage.removeItem('vt_auth');
-      delete api.defaults.headers.common['Authorization'];
+      await auth.signOut().catch(() => {});
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login?session=expired';
       }
