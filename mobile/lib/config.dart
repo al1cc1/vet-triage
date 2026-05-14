@@ -1,12 +1,15 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-const String _defaultHost = kIsWeb ? 'localhost' : '10.0.2.2';
-const String apiHost =
-    String.fromEnvironment('API_HOST', defaultValue: _defaultHost);
-const String apiBaseUrl = 'http://$apiHost:8081';
+const bool kProduction = bool.fromEnvironment('PRODUCTION', defaultValue: false);
+
+const String apiBaseUrl = kProduction
+    ? 'https://vet-triage-backend-b3ft.onrender.com'
+    : 'http://10.0.2.2:8081';
+
 // Native (non-SockJS) WebSocket endpoint — see backend WebSocketConfig
-const String wsUrl = 'ws://$apiHost:8081/ws-native';
+const String wsUrl = kProduction
+    ? 'wss://vet-triage-backend-b3ft.onrender.com/ws-native'
+    : 'ws://10.0.2.2:8081/ws-native';
 
 Color categoryColor(String category) {
   switch (category) {
