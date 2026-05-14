@@ -236,6 +236,10 @@ export default function NewVisitPage() {
       }))
     );
 
+  const showMic = micSupported &&
+    /Chrome/.test(navigator.userAgent) &&
+    /Google Inc/.test(navigator.vendor);
+
   useEffect(() => {
     if (!manualCategory) { setPreviewMinutes(null); return; }
     getPreviewTime(manualCategory).then(r => setPreviewMinutes(r.waitingMinutes)).catch(() => {});
@@ -316,31 +320,33 @@ export default function NewVisitPage() {
           <h2 className="section-title">{t('newVisit.sectionReason')}</h2>
           <div className="field">
             <label>{t('newVisit.reasonLabel')}</label>
-            <div style={{ position: 'relative' }}>
-              <textarea
-                value={form.reason + (interim ? (form.reason ? ' ' : '') + interim : '')}
-                onChange={e => {
-                  // strip interim from end if listening, otherwise update normally
-                  if (listening && interim) {
-                    const base = e.target.value.slice(0, e.target.value.length - interim.length - (form.reason ? 1 : 0));
-                    setForm(prev => ({ ...prev, reason: base }));
-                  } else {
-                    set('reason')(e);
-                  }
-                }}
-                rows={3}
-                className={inputClass('reason')}
-                style={listening ? { borderColor: '#3b82f6', boxShadow: '0 0 0 3px rgba(59,130,246,.15)', paddingRight: 44 } : { paddingRight: micSupported ? 44 : undefined }}
-                placeholder={t('newVisit.reasonPlaceholder')}
-              />
-              {micSupported && (
+            <textarea
+              value={form.reason + (interim ? (form.reason ? ' ' : '') + interim : '')}
+              onChange={e => {
+                if (listening && interim) {
+                  const base = e.target.value.slice(0, e.target.value.length - interim.length - (form.reason ? 1 : 0));
+                  setForm(prev => ({ ...prev, reason: base }));
+                } else {
+                  set('reason')(e);
+                }
+              }}
+              rows={5}
+              className={inputClass('reason')}
+              style={{
+                width: '100%',
+                minHeight: 120,
+                ...(listening ? { borderColor: '#3b82f6', boxShadow: '0 0 0 3px rgba(59,130,246,.15)' } : {}),
+              }}
+              placeholder={t('newVisit.reasonPlaceholder')}
+            />
+            {showMic && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
                 <button
                   type="button"
                   onClick={toggleMic}
                   title={listening ? 'Zatrzymaj nagrywanie' : 'Dyktuj tekst'}
                   style={{
-                    position: 'absolute', top: 8, right: 8,
-                    width: 30, height: 30, borderRadius: '50%', border: 'none',
+                    width: 32, height: 32, borderRadius: '50%', border: 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer',
                     background: listening ? '#ef4444' : '#e2e8f0',
@@ -351,8 +357,8 @@ export default function NewVisitPage() {
                 >
                   {listening ? <MicOff size={15} /> : <Mic size={15} />}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
             {fieldError('reason')}
           </div>
           <div className="symptom-groups">
