@@ -4,6 +4,7 @@ import com.vettriage.dto.device.DeviceTokenResponse;
 import com.vettriage.model.DeviceToken;
 import com.vettriage.repository.DeviceTokenRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,12 +15,15 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DeviceTokenService {
 
     private final DeviceTokenRepository deviceTokenRepository;
 
     @Transactional
     public void registerOrUpdate(String fcmToken, String clinicCode, String deviceName) {
+        log.info("Registering FCM token for clinicCode: {}, device: {}", clinicCode, deviceName);
+        boolean isNew = deviceTokenRepository.findByFcmToken(fcmToken).isEmpty();
         DeviceToken token = deviceTokenRepository.findByFcmToken(fcmToken)
                 .orElseGet(() -> DeviceToken.builder()
                         .fcmToken(fcmToken)
@@ -27,6 +31,7 @@ public class DeviceTokenService {
         token.setClinicCode(clinicCode);
         token.setDeviceName(deviceName);
         deviceTokenRepository.save(token);
+        log.info("FCM token {} (clinicCode={}, device={})", isNew ? "created" : "updated", clinicCode, deviceName);
     }
 
     @Transactional(readOnly = true)

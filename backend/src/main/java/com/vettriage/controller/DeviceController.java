@@ -4,6 +4,7 @@ import com.vettriage.dto.device.DeviceRegisterRequest;
 import com.vettriage.dto.device.DeviceTokenResponse;
 import com.vettriage.service.DeviceTokenService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -14,12 +15,15 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/devices")
 @RequiredArgsConstructor
+@Slf4j
 public class DeviceController {
 
     private final DeviceTokenService deviceTokenService;
 
+    // Public endpoint — no auth required so mobile app can register before login
     @PostMapping("/register")
     public ResponseEntity<Void> register(@RequestBody DeviceRegisterRequest req) {
+        log.info("DeviceController.register: clinicCode={}, device={}", req.getClinicCode(), req.getDeviceName());
         deviceTokenService.registerOrUpdate(
                 req.getFcmToken(), req.getClinicCode(), req.getDeviceName());
         return ResponseEntity.ok().build();

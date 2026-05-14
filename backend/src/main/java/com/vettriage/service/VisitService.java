@@ -86,11 +86,22 @@ public class VisitService {
 
         broadcastQueue(clinic.getClinicCode());
 
+        log.info("Visit created with category: {}", category);
+        log.info("Checking FCM tokens for clinicCode: {}", clinic.getClinicCode());
+
         boolean shouldNotify = (category == TriageCategory.RED && clinic.isNotifyRed())
                 || (category == TriageCategory.ORANGE && clinic.isNotifyOrange());
-        if (shouldNotify) {
+
+        if (!shouldNotify) {
+            log.info("Push notification skipped — category={}, notifyRed={}, notifyOrange={}",
+                    category, clinic.isNotifyRed(), clinic.isNotifyOrange());
+        } else {
             List<String> fcmTokens = deviceTokenService.getApprovedFcmTokens(clinic.getClinicCode());
-            if (!fcmTokens.isEmpty()) {
+            log.info("Found {} approved FCM tokens for clinicCode: {}", fcmTokens.size(), clinic.getClinicCode());
+            if (fcmTokens.isEmpty()) {
+                log.warn("No approved FCM tokens — push notification not sent");
+            } else {
+                log.info("Sending push notification to {} devices", fcmTokens.size());
                 String title = category == TriageCategory.RED ? "🚨 Pacjent KRYTYCZNY" : "🟠 Pacjent PILNY";
                 firebaseService.sendPushNotification(fcmTokens, title, req.getAnimalName() + " - " + req.getReason());
             }
