@@ -39,13 +39,31 @@ function useSpeechRecognition(onAppend: (text: string) => void) {
   const showToast = (text: string) =>
     window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'message', text } }));
 
-  const toggle = () => {
+  const toggle = async () => {
     if (!supported) return;
     if (listening) {
       console.log('[STT] stop requested');
       recogRef.current?.stop();
       return;
     }
+
+    // Explicitly request mic permission before SpeechRecognition.start().
+    // Required on HTTPS in Brave/Edge to avoid silent 'network' / 'not-allowed' errors.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop()); // release — SpeechRecognition manages its own stream
+      console.log('[STT] getUserMedia: permission granted');
+    } catch (err: unknown) {
+      const name = (err as { name?: string })?.name ?? '';
+      console.error('[STT] getUserMedia error:', name, err);
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        showToast('Brak uprawnień do mikrofonu. Zezwól w ustawieniach przeglądarki.');
+      } else {
+        showToast('Nie wykryto mikrofonu. Upewnij się że jest podłączony.');
+      }
+      return;
+    }
+
     const SR = (window.SpeechRecognition ?? window.webkitSpeechRecognition)!;
     const r = new SR();
     const lang = i18n.language?.startsWith('en') ? 'en-US' : 'pl-PL';
@@ -81,11 +99,13 @@ function useSpeechRecognition(onAppend: (text: string) => void) {
       if (!errorShownRef.current) {
         errorShownRef.current = true;
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-          showToast('Brak dostępu do mikrofonu. Kliknij ikonę kłódki w pasku adresu → Mikrofon → Zezwól, a następnie odśwież stronę.');
+          showToast('Brak uprawnień do mikrofonu. Zezwól w ustawieniach przeglądarki.');
         } else if (e.error === 'audio-capture') {
-          showToast('Nie znaleziono mikrofonu. Podłącz mikrofon i spróbuj ponownie.');
+          showToast('Nie wykryto mikrofonu.');
         } else if (e.error === 'network') {
-          showToast('Błąd sieci — rozpoznawanie mowy wymaga połączenia z internetem.');
+          showToast('Błąd połączenia z usługą rozpoznawania mowy. Spróbuj ponownie.');
+        } else if (e.error === 'no-speech') {
+          showToast('Nie wykryto mowy. Spróbuj ponownie.');
         } else {
           showToast(`Błąd rozpoznawania mowy: ${e.error}`);
         }
